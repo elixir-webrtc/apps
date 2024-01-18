@@ -4,6 +4,7 @@ defmodule Reco.Room do
   require Logger
 
   alias ExWebRTC.{ICECandidate, PeerConnection, SessionDescription}
+  alias ExWebRTC.RTP.{OpusDepayloader, VP8Depayloader}
 
   defp id(room_id), do: {:via, Registry, {Reco.RoomRegistry, room_id}}
 
@@ -23,7 +24,15 @@ defmodule Reco.Room do
   def init([room_id, channel]) do
     Logger.info("Starting room: #{room_id}")
     {:ok, pc} = PeerConnection.start_link()
-    {:ok, %{pc: pc, channel: channel}}
+
+    {:ok,
+     %{
+       pc: pc,
+       channel: channel,
+       audio_track: nil,
+       video_track: nil,
+       video_depayloader: VP8Depayloader.new()
+     }}
   end
 
   @impl true
@@ -65,6 +74,36 @@ defmodule Reco.Room do
 
     send(state.channel, {:signaling, %{"type" => "ice", "data" => candidate}})
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:ex_webrtc, _pc, {:track, %{kind: :audio} = track}}, state) do
+    {:noreply, %{state | audio_track: track}}
+  end
+
+  @impl true
+  def handle_info({:ex_webrtc, _pc, {:track, %{kind: :video} = track}}, state) do
+    {:noreply, %{state | video_track: track}}
+  end
+
+  @impl true
+  def handle_info({:ex_webrtc, _pc, {:rtp, track_id, packet}}, state) do
+    cond do
+      state.audio_track.id == track_id ->
+        {:noreply, state}
+
+      state.video_track.id == track_id ->
+        case VP8Depayloader.write(state.video_depayloader, packet) do
+          {:ok, d} ->
+            state = %{state | video_depayloader: d}
+            {:noreply, state}
+
+          {:ok, frame, d} ->
+            Logger.info("Got full frame!")
+            state = %{state | video_depayloader: d}
+            {:noreply, state}
+        end
+    end
   end
 
   @impl true
