@@ -13,7 +13,7 @@ config :reco, RecoWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "DSC/8aJizn4rM3K0cXbQES6Ah6OcvfywM0ygL0lIF9+1WrHxstwEyOMdAE4qWHNi",
+  secret_key_base: "ep2F4amvF/PSJgRn86LbwcxOOY841sKkNePN6O7zAOFtgCHKtIag091I7qqHxtaN",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:default, ~w(--watch)]}

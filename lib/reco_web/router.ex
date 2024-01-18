@@ -18,6 +18,7 @@ defmodule RecoWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/reco", RecoController, :index
   end
 
   # Other scopes may use custom stacks.

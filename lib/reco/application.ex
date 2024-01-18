@@ -14,7 +14,9 @@ defmodule Reco.Application do
       # Start a worker by calling: Reco.Worker.start_link(arg)
       # {Reco.Worker, arg},
       # Start to serve requests, typically the last entry
-      RecoWeb.Endpoint
+      RecoWeb.Endpoint,
+      {Registry, keys: :unique, name: Reco.RoomRegistry},
+      {DynamicSupervisor, name: Reco.RoomSupervisor, strategy: :one_for_one}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -4,7 +4,7 @@ import Config
 # you can enable the server option below.
 config :reco, RecoWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "ZYtW2ZgK0A3i9LYgDOVKzzL/vmPUuXJIjPzKORJJebEEdgqbF6b4oLHCv2jXMOqQ",
+  secret_key_base: "+3zS/OtReHyGngv8VDR/RTkLA5k4+MJMAGZa4PAQYMedOzfT9h/HkwEbXtlyw/g3",
   server: false
 
 # Print only warnings and errors during test
