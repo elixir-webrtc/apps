@@ -8,6 +8,7 @@ const videoPlayer = document.getElementById("videoPlayer");
 let localStream;
 let socket;
 let channel;
+let pc;
 
 async function start() {
   console.log("Starting");
@@ -22,8 +23,28 @@ async function start() {
     .receive("ok", resp => { console.log("Joined successfully", resp) })
     .receive("error", resp => { console.log("Unable to join", resp) })
 
+  channel.on("signaling", msg => {
 
+    if (msg.type == 'answer') {
+      console.log("Setting remote answer");
+      pc.setRemoteDescription(msg);
+    } else if (msg.type == 'ice') {
+      console.log("Adding ICE candidate");
+      pc.addIceCandidate(msg.data);
+    }
 
+  })
+
+  pc = new RTCPeerConnection();
+  pc.onicecandidate = ev => {
+    channel.push('signaling', JSON.stringify({ type: 'ice', data: ev.candidate }));
+  };
+  pc.addTrack(localStream.getAudioTracks()[0]);
+  pc.addTrack(localStream.getVideoTracks()[0]);
+
+  offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  channel.push("signaling", JSON.stringify(offer));
 }
 
 function stop() {

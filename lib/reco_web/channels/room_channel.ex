@@ -6,13 +6,17 @@ defmodule RecoWeb.RoomChannel do
   alias Reco.Room
 
   def join("room:" <> id, _message, socket) do
-    {:ok, _pid} = DynamicSupervisor.start_child(Reco.RoomSupervisor, {Room, [id]})
+    {:ok, _pid} = DynamicSupervisor.start_child(Reco.RoomSupervisor, {Room, [id, self()]})
     {:ok, assign(socket, :room_id, id)}
   end
 
-  def handle_in(x, y, socket) do
-    dbg(x)
-    dbg(y)
+  def handle_in("signaling", msg, socket) do
+    :ok = Room.receive_signaling_msg(socket.assigns.room_id, msg)
+    {:noreply, socket}
+  end
+
+  def handle_info({:signaling, msg}, socket) do
+    push(socket, "signaling", msg)
     {:noreply, socket}
   end
 
