@@ -46,7 +46,10 @@ defmodule Reco.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
-      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"}
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"},
+      {:xav, github: "mickel8/xav", branch: "decoder"},
+      {:bumblebee, "~> 0.4.2"},
+      {:exla, "~> 0.5"}
     ]
   end
 

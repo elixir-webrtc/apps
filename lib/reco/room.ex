@@ -31,7 +31,8 @@ defmodule Reco.Room do
        channel: channel,
        audio_track: nil,
        video_track: nil,
-       video_depayloader: VP8Depayloader.new()
+       video_depayloader: VP8Depayloader.new(),
+       decoder: nil
      }}
   end
 
@@ -99,9 +100,48 @@ defmodule Reco.Room do
             {:noreply, state}
 
           {:ok, frame, d} ->
-            Logger.info("Got full frame!")
+            <<_::7, p::1, _rest::binary>> = frame
             state = %{state | video_depayloader: d}
-            {:noreply, state}
+
+            cond do
+              p == 0 and state.decoder == nil ->
+                Logger.info("Got the first full keyframe, starting decoding!")
+                {:ok, model} = Bumblebee.load_model({:hf, "microsoft/resnet-50"})
+                {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "microsoft/resnet-50"})
+
+                serving =
+                  Bumblebee.Vision.image_classification(model, featurizer,
+                    top_k: 1,
+                    compile: [batch_size: 1],
+                    defn_options: [compiler: EXLA]
+                  )
+
+                {:ok, decoder} = Xav.Decoder.new()
+
+                pts = 0
+                {:ok, frame} = Xav.Decoder.decode(decoder, frame, pts, pts)
+
+                tensor = Xav.to_nx(frame)
+                res = Nx.Serving.run(serving, tensor)
+                send(state.channel, {:img_reco, res})
+
+                state = Map.put(state, :serving, serving)
+
+                {:noreply, %{state | decoder: decoder}}
+
+              state.decoder != nil ->
+                pts = 0
+                {:ok, frame} = Xav.Decoder.decode(state.decoder, frame, pts, pts)
+
+                tensor = Xav.to_nx(frame)
+                res = Nx.Serving.run(state.serving, tensor)
+                send(state.channel, {:img_reco, res})
+
+                {:noreply, state}
+
+              true ->
+                {:noreply, state}
+            end
         end
     end
   end

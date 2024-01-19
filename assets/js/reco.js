@@ -4,6 +4,7 @@ const pcConfig = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
 
 const button = document.getElementById("button");
 const videoPlayer = document.getElementById("videoPlayer");
+const imgreco = document.getElementById("imgreco");
 
 let localStream;
 let socket;
@@ -33,6 +34,10 @@ async function start() {
       pc.addIceCandidate(msg.data);
     }
 
+  })
+
+  channel.on("imgReco", msg => {
+    imgreco.innerText = JSON.stringify(msg);
   })
 
   pc = new RTCPeerConnection();

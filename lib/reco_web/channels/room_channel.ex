@@ -20,6 +20,11 @@ defmodule RecoWeb.RoomChannel do
     {:noreply, socket}
   end
 
+  def handle_info({:img_reco, msg}, socket) do
+    push(socket, "imgReco", msg)
+    {:noreply, socket}
+  end
+
   def terminate(reason, socket) do
     Logger.info("Stopping Phoenix chnannel, reason: #{inspect(reason)}.")
     Room.stop(socket.assigns.room_id)
