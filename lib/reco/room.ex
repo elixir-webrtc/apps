@@ -25,6 +25,16 @@ defmodule Reco.Room do
     Logger.info("Starting room: #{room_id}")
     {:ok, pc} = PeerConnection.start_link()
 
+    {:ok, whisper} = Bumblebee.load_model({:hf, "openai/whisper-tiny"})
+    {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "openai/whisper-tiny"})
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "openai/whisper-tiny"})
+    {:ok, generation_config} = Bumblebee.load_generation_config({:hf, "openai/whisper-tiny"})
+
+    serving =
+      Bumblebee.Audio.speech_to_text_whisper(whisper, featurizer, tokenizer, generation_config,
+        defn_options: [compiler: EXLA]
+      )
+
     {:ok,
      %{
        pc: pc,
@@ -32,6 +42,9 @@ defmodule Reco.Room do
        audio_track: nil,
        video_track: nil,
        video_depayloader: VP8Depayloader.new(),
+       audio_decoder: nil,
+       audio_serving: serving,
+       audio_frames: [],
        decoder: nil
      }}
   end
@@ -79,7 +92,8 @@ defmodule Reco.Room do
 
   @impl true
   def handle_info({:ex_webrtc, _pc, {:track, %{kind: :audio} = track}}, state) do
-    {:noreply, %{state | audio_track: track}}
+    {:ok, decoder} = Xav.Decoder.new(:opus)
+    {:noreply, %{state | audio_track: track, audio_decoder: decoder}}
   end
 
   @impl true
@@ -91,7 +105,23 @@ defmodule Reco.Room do
   def handle_info({:ex_webrtc, _pc, {:rtp, track_id, packet}}, state) do
     cond do
       state.audio_track.id == track_id ->
-        {:noreply, state}
+        audio = OpusDepayloader.depayload(packet)
+        {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio, 0, 0)
+        state = %{state | audio_frames: [frame | state.audio_frames]}
+
+        if Enum.count(state.audio_frames) == 50 do
+          audio_frames = Enum.reverse(state.audio_frames)
+          state = %{state | audio_frames: []}
+
+          frames = Enum.map(audio_frames, &Xav.to_nx(&1))
+
+          batch = Nx.Batch.concatenate(frames)
+          batch = Nx.Defn.jit_apply(&Function.identity/1, [batch])
+          Nx.Serving.run(state.audio_serving, batch) |> dbg()
+          {:noreply, state}
+        else
+          {:noreply, state}
+        end
 
       state.video_track.id == track_id ->
         case VP8Depayloader.write(state.video_depayloader, packet) do
@@ -100,6 +130,7 @@ defmodule Reco.Room do
             {:noreply, state}
 
           {:ok, frame, d} ->
+            {:noreply, state}
             <<_::7, p::1, _rest::binary>> = frame
             state = %{state | video_depayloader: d}
 
@@ -116,7 +147,7 @@ defmodule Reco.Room do
                     defn_options: [compiler: EXLA]
                   )
 
-                {:ok, decoder} = Xav.Decoder.new()
+                {:ok, decoder} = Xav.Decoder.new(:vp8)
 
                 pts = 0
                 {:ok, frame} = Xav.Decoder.decode(decoder, frame, pts, pts)
