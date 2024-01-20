@@ -13,7 +13,16 @@ let pc;
 
 async function start() {
   console.log("Starting");
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: {
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+      frameRate: { ideal: 5 }
+    }
+  });
+
   videoPlayer.srcObject = localStream;
 
   socket = new Socket("/socket", {});

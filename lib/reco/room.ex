@@ -25,27 +25,18 @@ defmodule Reco.Room do
     Logger.info("Starting room: #{room_id}")
     {:ok, pc} = PeerConnection.start_link()
 
-    {:ok, whisper} = Bumblebee.load_model({:hf, "openai/whisper-tiny"})
-    {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "openai/whisper-tiny"})
-    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "openai/whisper-tiny"})
-    {:ok, generation_config} = Bumblebee.load_generation_config({:hf, "openai/whisper-tiny"})
-
-    serving =
-      Bumblebee.Audio.speech_to_text_whisper(whisper, featurizer, tokenizer, generation_config,
-        defn_options: [compiler: EXLA]
-      )
-
     {:ok,
      %{
        pc: pc,
        channel: channel,
-       audio_track: nil,
        video_track: nil,
        video_depayloader: VP8Depayloader.new(),
-       audio_decoder: nil,
-       audio_serving: serving,
-       audio_frames: [],
-       decoder: nil
+       video_decoder: Xav.Decoder.new(:vp8),
+       video_serving: create_video_serving(),
+       audio_track: nil,
+       audio_decoder: Xav.Decoder.new(:opus),
+       audio_serving: create_audio_serving(),
+       audio_frames: []
      }}
   end
 
@@ -91,9 +82,14 @@ defmodule Reco.Room do
   end
 
   @impl true
+  def handle_info({:ex_webrtc, _pc, {:connection_state_change, :connected}}, state) do
+    Logger.info("Connection state changed - connected!")
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info({:ex_webrtc, _pc, {:track, %{kind: :audio} = track}}, state) do
-    {:ok, decoder} = Xav.Decoder.new(:opus)
-    {:noreply, %{state | audio_track: track, audio_decoder: decoder}}
+    {:noreply, %{state | audio_track: track}}
   end
 
   @impl true
@@ -106,14 +102,14 @@ defmodule Reco.Room do
     cond do
       state.audio_track.id == track_id ->
         audio = OpusDepayloader.depayload(packet)
-        {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio, 0, 0)
+        {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio)
         state = %{state | audio_frames: [frame | state.audio_frames]}
 
-        if Enum.count(state.audio_frames) == 50 do
+        if Enum.count(state.audio_frames) == 100 do
           audio_frames = Enum.reverse(state.audio_frames)
           state = %{state | audio_frames: []}
 
-          frames = Enum.map(audio_frames, &Xav.to_nx(&1))
+          frames = Enum.map(audio_frames, &Xav.Frame.to_nx(&1))
 
           batch = Nx.Batch.concatenate(frames)
           batch = Nx.Defn.jit_apply(&Function.identity/1, [batch])
@@ -130,47 +126,17 @@ defmodule Reco.Room do
             {:noreply, state}
 
           {:ok, frame, d} ->
-            {:noreply, state}
-            <<_::7, p::1, _rest::binary>> = frame
             state = %{state | video_depayloader: d}
 
-            cond do
-              p == 0 and state.decoder == nil ->
-                Logger.info("Got the first full keyframe, starting decoding!")
-                {:ok, model} = Bumblebee.load_model({:hf, "microsoft/resnet-50"})
-                {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "microsoft/resnet-50"})
-
-                serving =
-                  Bumblebee.Vision.image_classification(model, featurizer,
-                    top_k: 1,
-                    compile: [batch_size: 1],
-                    defn_options: [compiler: EXLA]
-                  )
-
-                {:ok, decoder} = Xav.Decoder.new(:vp8)
-
-                pts = 0
-                {:ok, frame} = Xav.Decoder.decode(decoder, frame, pts, pts)
-
-                tensor = Xav.to_nx(frame)
-                res = Nx.Serving.run(serving, tensor)
+            case Xav.Decoder.decode(state.video_decoder, frame) do
+              {:ok, frame} ->
+                tensor = Xav.Frame.to_nx(frame)
+                res = Nx.Serving.run(state.video_serving, tensor)
                 send(state.channel, {:img_reco, res})
-
-                state = Map.put(state, :serving, serving)
-
-                {:noreply, %{state | decoder: decoder}}
-
-              state.decoder != nil ->
-                pts = 0
-                {:ok, frame} = Xav.Decoder.decode(state.decoder, frame, pts, pts)
-
-                tensor = Xav.to_nx(frame)
-                res = Nx.Serving.run(state.serving, tensor)
-                send(state.channel, {:img_reco, res})
-
                 {:noreply, state}
 
-              true ->
+              {:error, :no_keyframe} ->
+                Logger.warning("Couldn't decode video frame - missing keyframe!")
                 {:noreply, state}
             end
         end
@@ -178,8 +144,29 @@ defmodule Reco.Room do
   end
 
   @impl true
-  def handle_info(msg, state) do
-    Logger.warning("Unexpected msg: #{inspect(msg)}")
+  def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  defp create_audio_serving() do
+    {:ok, whisper} = Bumblebee.load_model({:hf, "openai/whisper-tiny"})
+    {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "openai/whisper-tiny"})
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "openai/whisper-tiny"})
+    {:ok, generation_config} = Bumblebee.load_generation_config({:hf, "openai/whisper-tiny"})
+
+    Bumblebee.Audio.speech_to_text_whisper(whisper, featurizer, tokenizer, generation_config,
+      defn_options: [compiler: EXLA]
+    )
+  end
+
+  defp create_video_serving() do
+    {:ok, model} = Bumblebee.load_model({:hf, "microsoft/resnet-50"})
+    {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "microsoft/resnet-50"})
+
+    Bumblebee.Vision.image_classification(model, featurizer,
+      top_k: 1,
+      compile: [batch_size: 1],
+      defn_options: [compiler: EXLA]
+    )
   end
 end
