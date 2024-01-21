@@ -46,9 +46,11 @@ defmodule Reco.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
-      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", branch: "ice-cand-json"},
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", branch: "get-stats"},
+      # {:ex_webrtc, path: "../ex_webrtc"},
+      {:ex_webrtc_dashboard, path: "../ex_webrtc_dashboard"},
       {:xav, github: "mickel8/xav"},
-      #{:xav, path: "../xav"},
+      # {:xav, path: "../xav"},
       {:bumblebee, "~> 0.4.2"},
       {:exla, "~> 0.5"}
     ]

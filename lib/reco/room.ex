@@ -17,7 +17,7 @@ defmodule Reco.Room do
   end
 
   def stop(room_id) do
-    GenServer.stop(id(room_id))
+    GenServer.stop(id(room_id), :shutdown)
   end
 
   @impl true
@@ -93,7 +93,7 @@ defmodule Reco.Room do
         {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio)
         state = %{state | audio_frames: [frame | state.audio_frames]}
 
-        if Enum.count(state.audio_frames) == 200 do
+        if Enum.count(state.audio_frames) == 25 do
           audio_frames = Enum.reverse(state.audio_frames)
           state = %{state | audio_frames: []}
 
