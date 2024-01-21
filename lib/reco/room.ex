@@ -51,14 +51,8 @@ defmodule Reco.Room do
         msg = %{"type" => "answer", "sdp" => answer.sdp}
         send(state.channel, {:signaling, msg})
 
-      %{"type" => "ice", "data" => data} ->
-        candidate = %ICECandidate{
-          candidate: data["candidate"],
-          sdp_mid: data["sdpMid"],
-          sdp_m_line_index: data["sdpMLineIndex"],
-          username_fragment: data["usernameFragment"]
-        }
-
+      %{"type" => "ice", "data" => data} when data != nil ->
+        candidate = ICECandidate.from_json(data)
         :ok = PeerConnection.add_ice_candidate(state.pc, candidate)
 
       _ ->
@@ -70,13 +64,7 @@ defmodule Reco.Room do
 
   @impl true
   def handle_info({:ex_webrtc, _pc, {:ice_candidate, candidate}}, state) do
-    candidate = %{
-      "candidate" => candidate.candidate,
-      "sdpMid" => candidate.sdp_mid,
-      "sdpMLineIndex" => candidate.sdp_m_line_index,
-      "usernameFragment" => candidate.username_fragment
-    }
-
+    candidate = ICECandidate.to_json(candidate)
     send(state.channel, {:signaling, %{"type" => "ice", "data" => candidate}})
     {:noreply, state}
   end
@@ -105,7 +93,7 @@ defmodule Reco.Room do
         {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio)
         state = %{state | audio_frames: [frame | state.audio_frames]}
 
-        if Enum.count(state.audio_frames) == 100 do
+        if Enum.count(state.audio_frames) == 200 do
           audio_frames = Enum.reverse(state.audio_frames)
           state = %{state | audio_frames: []}
 
