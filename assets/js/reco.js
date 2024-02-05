@@ -28,7 +28,9 @@ async function start() {
   socket = new Socket("/socket", {});
   socket.connect();
 
-  channel = socket.channel("room:room1", {})
+  roomId = Math.floor(Math.random() * 10000);
+
+  channel = socket.channel("room:" + roomId, {});
   channel.join()
     .receive("ok", resp => { console.log("Joined successfully", resp) })
     .receive("error", resp => { console.log("Unable to join", resp) })
