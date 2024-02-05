@@ -1,12 +1,13 @@
 defmodule RecoWeb.RoomChannel do
-  use Phoenix.Channel
+  use Phoenix.Channel, restart: :temporary
 
   require Logger
 
   alias Reco.Room
 
   def join("room:" <> id, _message, socket) do
-    {:ok, _pid} = DynamicSupervisor.start_child(Reco.RoomSupervisor, {Room, [id, self()]})
+    id = String.to_integer(id)
+    :ok = Room.connect(id, self())
     {:ok, assign(socket, :room_id, id)}
   end
 
@@ -25,8 +26,16 @@ defmodule RecoWeb.RoomChannel do
     {:noreply, socket}
   end
 
-  def terminate(reason, socket) do
+  def handle_info({:session_time, session_time}, socket) do
+    push(socket, "sessionTime", %{time: session_time})
+    {:noreply, socket}
+  end
+
+  def handle_info(:session_expired, socket) do
+    {:stop, {:shutdown, :session_expired}, socket}
+  end
+
+  def terminate(reason, _socket) do
     Logger.info("Stopping Phoenix chnannel, reason: #{inspect(reason)}.")
-    Room.stop(socket.assigns.room_id)
   end
 end

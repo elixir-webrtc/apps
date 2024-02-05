@@ -18,7 +18,9 @@ defmodule RecoWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    get "/reco", RecoController, :index
+    live "/reco", RecoLive
+    live "/reco/lobby", LobbyLive
+    get "/reco/room/:room_id", RecoController, :room
   end
 
   # Other scopes may use custom stacks.
@@ -39,8 +41,9 @@ defmodule RecoWeb.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard",
-        metrics: RecoWeb.Telemetry,
-        additional_pages: [route_name: ExWebRTCDashboard]
+        metrics: RecoWeb.Telemetry
+
+      # additional_pages: [route_name: ExWebRTCDashboard]
     end
   end
 end
