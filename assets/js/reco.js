@@ -1,25 +1,30 @@
 import { Socket } from "phoenix"
 
+const locArray = window.location.pathname.split('/');
+const roomId = locArray[locArray.length - 1];
+
 const pcConfig = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
 
-const button = document.getElementById("button");
 const videoPlayer = document.getElementById("videoPlayer");
-const imgreco = document.getElementById("imgreco");
+const button = document.getElementById("leaveButton");
+const imgpred = document.getElementById("imgpred");
+const imgscore = document.getElementById("imgscore");
+const time = document.getElementById("time");
 
 let localStream;
 let socket;
 let channel;
 let pc;
 
-async function start() {
+async function run() {
   console.log("Starting");
 
   localStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
     video: {
-      width: { ideal: 640 },
-      height: { ideal: 480 },
-      frameRate: { ideal: 10 }
+      width: { ideal: 320 },
+      height: { ideal: 160 },
+      frameRate: { ideal: 15 }
     }
   });
 
@@ -28,13 +33,17 @@ async function start() {
   socket = new Socket("/socket", {});
   socket.connect();
 
-  channel = socket.channel("room:room1", {})
+  channel = socket.channel("room:" + roomId, {});
+  channel.onClose(_ => { window.location.href = "/reco" });
+
   channel.join()
     .receive("ok", resp => { console.log("Joined successfully", resp) })
-    .receive("error", resp => { console.log("Unable to join", resp) })
+    .receive("error", resp => {
+      console.log("Unable to join", resp);
+      window.location.href = "/reco";
+    })
 
   channel.on("signaling", msg => {
-
     if (msg.type == 'answer') {
       console.log("Setting remote answer");
       pc.setRemoteDescription(msg);
@@ -42,14 +51,19 @@ async function start() {
       console.log("Adding ICE candidate");
       pc.addIceCandidate(msg.data);
     }
-
   })
 
   channel.on("imgReco", msg => {
-    imgreco.innerText = JSON.stringify(msg);
+    const pred = msg['predictions'][0];
+    imgpred.innerText = pred['label'];
+    imgscore.innerText = pred['score'];
   })
 
-  pc = new RTCPeerConnection();
+  channel.on("sessionTime", msg => {
+    time.innerText = msg['time'];
+  })
+
+  pc = new RTCPeerConnection(pcConfig);
   pc.onicecandidate = ev => {
     channel.push('signaling', JSON.stringify({ type: 'ice', data: ev.candidate }));
   };
@@ -61,20 +75,22 @@ async function start() {
   channel.push("signaling", JSON.stringify(offer));
 }
 
-function stop() {
-  console.log("Stopping");
+button.onclick = () => {
+  console.log("Leaving");
   localStream.getTracks().forEach(track => track.stop());
   videoPlayer.srcObject = null;
-  channel.leave();
-  socket.disconnect();
-}
 
-button.onclick = () => {
-  if (button.innerText == "Start") {
-    button.innerText = "Stop";
-    start();
-  } else if (button.innerText == "Stop") {
-    button.innerText = "Start";
-    stop();
+  if (typeof channel !== 'undefined') {
+    channel.leave();
+  }
+
+  if (typeof socket !== 'undefined') {
+    socket.disconnect();
+  }
+
+  if (typeof pc !== 'undefined') {
+    pc.close();
   }
 }
+
+run();
