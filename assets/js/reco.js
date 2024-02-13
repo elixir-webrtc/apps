@@ -24,7 +24,7 @@ async function run() {
     video: {
       width: { ideal: 320 },
       height: { ideal: 160 },
-      frameRate: { ideal: 10 }
+      frameRate: { ideal: 15 }
     }
   });
 
