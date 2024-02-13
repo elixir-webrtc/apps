@@ -19,7 +19,7 @@ async function start() {
     video: {
       width: { ideal: 640 },
       height: { ideal: 480 },
-      frameRate: { ideal: 5 }
+      frameRate: { ideal: 10 }
     }
   });
 

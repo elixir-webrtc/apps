@@ -44,7 +44,7 @@ defmodule Reco.Room do
   def handle_cast({:receive_signaling_msg, msg}, state) do
     case Jason.decode!(msg) do
       %{"type" => "offer"} = offer ->
-        {:ok, desc} = SessionDescription.from_json(offer)
+        desc = SessionDescription.from_json(offer)
         :ok = PeerConnection.set_remote_description(state.pc, desc)
         {:ok, answer} = PeerConnection.create_answer(state.pc)
         :ok = PeerConnection.set_local_description(state.pc, answer)
@@ -89,23 +89,7 @@ defmodule Reco.Room do
   def handle_info({:ex_webrtc, _pc, {:rtp, track_id, packet}}, state) do
     cond do
       state.audio_track.id == track_id ->
-        audio = OpusDepayloader.depayload(packet)
-        {:ok, frame} = Xav.Decoder.decode(state.audio_decoder, audio)
-        state = %{state | audio_frames: [frame | state.audio_frames]}
-
-        if Enum.count(state.audio_frames) == 25 do
-          audio_frames = Enum.reverse(state.audio_frames)
-          state = %{state | audio_frames: []}
-
-          frames = Enum.map(audio_frames, &Xav.Frame.to_nx(&1))
-
-          batch = Nx.Batch.concatenate(frames)
-          batch = Nx.Defn.jit_apply(&Function.identity/1, [batch])
-          Nx.Serving.run(state.audio_serving, batch) |> dbg()
-          {:noreply, state}
-        else
-          {:noreply, state}
-        end
+        {:noreply, state}
 
       state.video_track.id == track_id ->
         case VP8Depayloader.write(state.video_depayloader, packet) do
