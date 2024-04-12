@@ -1,10 +1,5 @@
-# Reco
+# Apps
 
-Phoenix app for real-time image recognition using [Elixir WebRTC](https://github.com/elixir-webrtc) and [Elixir Nx](https://github.com/elixir-nx/nx).
+This repo contains a bunch of applications built on top of the [Elixir WebRTC](https://github.com/elixir-webrtc/ex_webrtc) library:
 
-To start your Phoenix server:
-
-  * Run `mix setup` to install and setup dependencies
-  * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
-
-Now you can visit [`localhost:5002/reco`](http://localhost:5002/reco) from your browser.
+* [_Reco_](/reco) - a [Phoenix](https://www.phoenixframework.org/) app for real-time image recognition that uses Elixir WebRTC and [Elixir Nx](https://github.com/elixir-nx/)
