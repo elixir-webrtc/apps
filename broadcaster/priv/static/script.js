@@ -1,5 +1,5 @@
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const whepEndpoint = `${window.location.href}/api/whep`;
+const whepEndpoint = `${window.location.href}api/whep`;
 const videoPlayer = document.getElementById("videoPlayer");
 
 const pc = new RTCPeerConnection(pcConfig);
