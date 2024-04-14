@@ -35,6 +35,9 @@ defmodule Broadcaster.PeerSupervisor do
   @spec start_whep(String.t()) :: {:ok, pid(), String.t()} | {:error, term()}
   def start_whep(offer_sdp), do: start_pc(offer_sdp, :sendonly)
 
+  @spec pc_name(String.t()) :: term()
+  def pc_name(id), do: {:via, Registry, {Broadcaster.PeerRegistry, id}}
+
   @spec terminate_pc(pid()) :: :ok | {:error, :not_found}
   def terminate_pc(pc) do
     DynamicSupervisor.terminate_child(__MODULE__, pc)
@@ -47,7 +50,8 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp start_pc(offer_sdp, direction) do
     offer = %SessionDescription{type: :offer, sdp: offer_sdp}
-    {:ok, pc} = spawn_peer_connection()
+    pc_id = unique_pc_id()
+    {:ok, pc} = spawn_peer_connection(pc_id)
 
     Logger.info("Received offer for #{inspect(pc)}, SDP:\n#{offer.sdp}")
 
@@ -59,7 +63,7 @@ defmodule Broadcaster.PeerSupervisor do
          answer <- PeerConnection.get_local_description(pc) do
       Logger.info("Sent answer for #{inspect(pc)}, SDP:\n#{answer.sdp}")
 
-      {:ok, pc, answer.sdp}
+      {:ok, pc, pc_id, answer.sdp}
     else
       {:error, _res} = err ->
         Logger.info("Failed to complete negotiation for #{inspect(pc)}")
@@ -83,12 +87,14 @@ defmodule Broadcaster.PeerSupervisor do
     :ok
   end
 
-  defp spawn_peer_connection() do
-    args = Keyword.put(@opts, :controlling_process, self())
+  defp spawn_peer_connection(id) do
+    name = pc_name(id)
+    gen_server_opts = [name: name]
+    pc_opts = Keyword.put(@opts, :controlling_process, self())
 
     child_spec = %{
       id: PeerConnection,
-      start: {PeerConnection, :start_link, [args]},
+      start: {PeerConnection, :start_link, [pc_opts, gen_server_opts]},
       restart: :temporary
     }
 
@@ -102,4 +108,6 @@ defmodule Broadcaster.PeerSupervisor do
       1000 -> {:error, :timeout}
     end
   end
+
+  defp unique_pc_id(), do: for(_ <- 1..10, into: "", do: <<Enum.random(~c"0123456789abcdef")>>)
 end
