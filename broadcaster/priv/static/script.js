@@ -1,6 +1,7 @@
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const whepEndpoint = `${window.location.href}api/whep`;
 const videoPlayer = document.getElementById("videoPlayer");
+const viewersCount = document.getElementById("viewersCount");
 const candidates = [];
 let patchEndpoint;
 
@@ -18,6 +19,33 @@ async function sendCandidate(candidate) {
     console.log("Successfully sent ICE candidate:", candidate);
   } else {
     console.error(`Failed to send ICE, status: ${response.status}, candidate:`, candidate)
+  }
+}
+
+async function setupViewerscountStream(link) {
+  // ignore rel and events attributes for now
+  let sseEntrypointEndpoint = link.split(";")[0];
+  // link address is enclosed in <> 
+  sseEntrypointEndpoint = sseEntrypointEndpoint.substring(1, sseEntrypointEndpoint.length - 1);
+
+  const response = await fetch(sseEntrypointEndpoint, {
+    method: "POST",
+    cache: "no-cache",
+  });
+
+  sseEndpoint = response.headers.get("location");
+
+  evtSource = new EventSource(sseEndpoint);
+
+  evtSource.onmessage = (ev) => {
+    data = JSON.parse(ev.data);
+    console.log(data);
+    viewersCount.innerText = data.viewerscount;
+  };
+
+  evtSource.onerror = (err) => {
+    console.log(err);
+    evtSource.close();
   }
 }
 
@@ -58,12 +86,13 @@ async function connect() {
 
   if (response.status === 201) {
     patchEndpoint = response.headers.get("location");
-    console.log("Sucessfully initialized WHEP connection")
-
+    console.log("Sucessfully initialized WHEP connection");
   } else {
     console.error(`Failed to initialize WHEP connection, status: ${response.status}`);
     return;
   }
+
+  setupViewerscountStream(response.headers.get("link"));
 
   for (const candidate of candidates) {
     sendCandidate(candidate);

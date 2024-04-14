@@ -7,6 +7,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: 'Courier New';
 }
 
 #header {
@@ -20,8 +21,15 @@ body {
   width: 300px;
 }
 
-#videoPlayer {
+
+#player {
   max-width: 90%;
   max-height: 65%;
+  aspect-ratio: 1280/720;
+}
+
+#videoPlayer {
+  max-width: 100%;
+  max-height: 100%;
   border-radius: 8px;
 }

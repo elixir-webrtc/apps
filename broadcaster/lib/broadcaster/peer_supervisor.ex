@@ -49,6 +49,11 @@ defmodule Broadcaster.PeerSupervisor do
   @spec pc_name(String.t()) :: term()
   def pc_name(id), do: {:via, Registry, {Broadcaster.PeerRegistry, id}}
 
+  @spec pc_exists?(String.t()) :: boolean()
+  def pc_exists?(id) do
+    Registry.whereis_name({Broadcaster.PeerRegistry, pc_name(id)})
+  end
+
   @spec terminate_pc(pid()) :: :ok | {:error, :not_found}
   def terminate_pc(pc) do
     DynamicSupervisor.terminate_child(__MODULE__, pc)

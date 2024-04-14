@@ -22,7 +22,7 @@ defmodule Broadcaster.MixProject do
     [
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"},
       {:plug, "~> 1.15.0"},
-      {:bandit, "~> 1.4.0"},
+      {:plug_cowboy, "~> 2.0"},
       {:corsica, "~> 2.0.0"},
       {:observer_cli, "~> 1.7.0"}
     ]

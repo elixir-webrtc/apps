@@ -9,7 +9,7 @@ defmodule Broadcaster do
     port = Application.fetch_env!(:broadcaster, :port)
 
     children = [
-      {Bandit, plug: Router, scheme: :http, ip: ip, port: port},
+      {Plug.Cowboy, plug: Router, scheme: :http, ip: ip, port: port},
       PeerSupervisor,
       Forwarder,
       {Registry, name: __MODULE__.PeerRegistry, keys: :unique}

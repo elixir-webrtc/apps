@@ -1,20 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="stylesheet" type="text/css" href="styles.css"/>
-    <title>Broadcaster | Elixir WebRTC</title>
-  </head>
-  <body>
-    <div id="header">
-      <a href="https://github.com/elixir-webrtc/ex_webrtc" target="_blank">
-        <img id="logo" src="logo.svg" alt="Elixir WebRTC logo"/>
-      </a>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" type="text/css" href="styles.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <title>Broadcaster | Elixir WebRTC</title>
+</head>
+
+<body>
+  <div id="header">
+    <a href="https://github.com/elixir-webrtc/ex_webrtc" target="_blank">
+      <img id="logo" src="logo.svg" alt="Elixir WebRTC logo" />
+    </a>
+  </div>
+  <div id="player">
+    <video id="videoPlayer" width="1280px" height="720px" autoplay controls muted></video>
+    <div style="display:flex; align-items: center; flex-direction: row;justify-content: end;">
+      <i style="font-size: 30pt" class="material-icons">person</i>
+      <span id="viewersCount" style="font-size: 24px">0</span>
     </div>
-    <video id="videoPlayer" autoplay controls muted></video>
-    <script src="script.js"></script>
-  </body>
+  </div>
+  <script src="script.js"></script>
+</body>
+
 </html>
