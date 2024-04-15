@@ -25,7 +25,8 @@ async function connect() {
   pc.addTransceiver("video", { direction: "recvonly" });
   pc.addTransceiver("audio", { direction: "recvonly" });
 
-  await pc.createOffer().then(offer => pc.setLocalDescription(offer));
+  const offer = await pc.createOffer()
+  await pc.setLocalDescription(offer);
 
   const response = await fetch(whepEndpoint, {
     method: "POST",
@@ -40,10 +41,9 @@ async function connect() {
   if (response.status === 201) {
     resourceLocation = `${window.location.protocol}//${window.location.host}` + response.headers.get("location");
     console.log("Sucessfully initialized WHEP connection")
-    console.log(response)
 
     for (const candidate of candidates) {
-      await sendCandidate(candidate);
+      sendCandidate(candidate);
     }
 
   } else {
@@ -55,21 +55,21 @@ async function connect() {
   await pc.setRemoteDescription({ type: "answer", sdp: sdp });
 }
 
-async function sendCandidate(candidate) {
-  const resp = await fetch(resourceLocation, {
+function sendCandidate(candidate) {
+  fetch(resourceLocation, {
     method: "PATCH",
     cache: "no-cache",
     headers: {
       "Content-Type": "application/trickle-ice-sdpfrag"
     },
     body: candidate
-  });
-
-  if (resp.status == 204) {
-    console.log("Successfully sent ICE candidate.");
-  } else {
-    console.log("Failed to send ICE candidate, response: " + resp)
-  }
+  }).then((response => {
+    if (response.status === 204) {
+      console.log(`Successfully sent ICE candidate: ${candidate}.`);
+    } else {
+      console.log(`Failed to send ICE candidate: ${candidate}, reason: ${response.status}`)
+    }
+  }))
 }
 
 connect();
