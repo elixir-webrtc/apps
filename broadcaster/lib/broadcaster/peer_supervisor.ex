@@ -50,7 +50,7 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp start_pc(offer_sdp, direction) do
     offer = %SessionDescription{type: :offer, sdp: offer_sdp}
-    pc_id = unique_pc_id()
+    pc_id = generate_pc_id()
     {:ok, pc} = spawn_peer_connection(pc_id)
 
     Logger.info("Received offer for #{inspect(pc)}, SDP:\n#{offer.sdp}")
@@ -109,5 +109,5 @@ defmodule Broadcaster.PeerSupervisor do
     end
   end
 
-  defp unique_pc_id(), do: for(_ <- 1..10, into: "", do: <<Enum.random(~c"0123456789abcdef")>>)
+  defp generate_pc_id(), do: for(_ <- 1..10, into: "", do: <<Enum.random(~c"0123456789abcdef")>>)
 end
