@@ -11,7 +11,8 @@ defmodule Broadcaster do
     children = [
       {Bandit, plug: Router, scheme: :http, ip: ip, port: port},
       PeerSupervisor,
-      Forwarder
+      Forwarder,
+      {Registry, name: __MODULE__.PeerRegistry, keys: :unique}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_all, name: __MODULE__.Supervisor)
