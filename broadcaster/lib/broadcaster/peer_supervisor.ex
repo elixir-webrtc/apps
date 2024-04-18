@@ -5,23 +5,33 @@ defmodule Broadcaster.PeerSupervisor do
 
   alias ExWebRTC.{MediaStreamTrack, PeerConnection, SessionDescription, RTPCodecParameters}
 
-  @audio_codec %RTPCodecParameters{
-    payload_type: 111,
-    mime_type: "audio/opus",
-    clock_rate: 48_000,
-    channels: 2
-  }
+  @audio_codecs [
+    %RTPCodecParameters{
+      payload_type: 111,
+      mime_type: "audio/opus",
+      clock_rate: 48_000,
+      channels: 2
+    }
+  ]
 
-  @video_codec %RTPCodecParameters{
-    payload_type: 96,
-    mime_type: "video/H264",
-    clock_rate: 90_000
-  }
+  @video_codecs [
+    %RTPCodecParameters{
+      payload_type: 96,
+      mime_type: "video/H264",
+      clock_rate: 90_000
+    },
+    %RTPCodecParameters{
+      payload_type: 97,
+      mime_type: "video/rtx",
+      clock_rate: 90_000,
+      sdp_fmtp_line: %{pt: 97, apt: 96}
+    }
+  ]
 
   @opts [
     ice_servers: [%{urls: "stun:stun.l.google.com:19302"}],
-    audio_codecs: [@audio_codec],
-    video_codecs: [@video_codec]
+    audio_codecs: @audio_codecs,
+    video_codecs: @video_codecs
   ]
 
   @spec start_link(any()) :: Supervisor.on_start()
