@@ -1,0 +1,27 @@
+body {
+  margin: 0;
+  background-color: #f7f5fe;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#header {
+  position: absolute;
+  top: 8px;
+  left: 8px
+}
+
+#logo {
+  padding: 8px;
+  width: 300px;
+}
+
+#videoPlayer {
+  max-width: 90%;
+  max-height: 65%;
+  border-radius: 8px;
+}
