@@ -17,9 +17,10 @@ Set the evironment variables
 ```shell
 # note: these are actually the default values,
 # so you can omit setting the variables
-export BCR_IP="0.0.0.0"
+export BCR_IP="127.0.0.1"
 export BCR_PORT="5002"
 export BCR_TOKEN="test"
+export BCR_HOST="http://localhost:$BCR_PORT"
 ```
 
 Run the app
@@ -31,9 +32,9 @@ mix run --no-halt
 We will use [OBS](https://github.com/obsproject/obs-studio) as a media source.
 Open OBS an go to `settings > Stream` and change `Service` to `WHIP`.
 
-Pass `http://$BSR_IP:$BSR_PORT/api/whip` as the `Server` value and `$BSR_TOKEN` as the `Bearer Token` value, using the environment
+Pass `$BCR_HOST/api/whip` as the `Server` value and `$BCR_TOKEN` as the `Bearer Token` value, using the environment
 variables values that have been set a moment ago. Press `Apply`.
 
 Close the settings, choose a source of you liking (e.g. a web-cam feed) and press `Start Streaming`.
 
-Acces `http://$BSR_IP:$BSR_PORT/` in your browser. You should see the live stream from you OBS.
+Acces `$BCR_HOST/` in your browser. You should see the live stream from you OBS.
