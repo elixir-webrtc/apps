@@ -77,6 +77,10 @@ defmodule Broadcaster.Forwarder do
 
         outputs = Map.put(state.outputs, pc, %{audio: audio_track_id, video: video_track_id})
 
+        if state.input_pc != nil do
+          :ok = PeerConnection.send_pli(state.input_pc, state.video_input)
+        end
+
         Logger.info("Output #{inspect(pc)} has successfully connected")
 
         %{state | pending_outputs: pending_outputs, outputs: outputs}
