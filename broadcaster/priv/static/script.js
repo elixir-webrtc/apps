@@ -1,21 +1,39 @@
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const whepEndpoint = `${window.location.href}api/whep`;
 const videoPlayer = document.getElementById("videoPlayer");
+const candidates = [];
+let patchEndpoint;
 
-const pc = new RTCPeerConnection(pcConfig);
-let resourceLocation;
-let candidates = [];
+async function sendCandidate(candidate) {
+  const response = await fetch(patchEndpoint, {
+    method: "PATCH",
+    cache: "no-cache",
+    headers: {
+      "Content-Type": "application/trickle-ice-sdpfrag"
+    },
+    body: candidate
+  });
+
+  if (response.status === 204) {
+    console.log("Successfully sent ICE candidate:", candidate);
+  } else {
+    console.error(`Failed to send ICE, status: ${response.status}, candidate:`, candidate)
+  }
+}
 
 async function connect() {
+  const pc = new RTCPeerConnection(pcConfig);
+
   pc.ontrack = event => videoPlayer.srcObject = event.streams[0];
   pc.onicegatheringstatechange = () => console.log("Gathering state change: " + pc.iceGatheringState);
+  pc.onconnectionstatechange = () => console.log("Connection state change: " + pc.connectionState);
   pc.onicecandidate = event => {
     if (event.candidate == null) {
       return;
     }
 
     const candidate = JSON.stringify(event.candidate);
-    if (resourceLocation == undefined) {
+    if (patchEndpoint === undefined) {
       candidates.push(candidate);
     } else {
       sendCandidate(candidate);
@@ -39,37 +57,20 @@ async function connect() {
   });
 
   if (response.status === 201) {
-    resourceLocation = `${window.location.protocol}//${window.location.host}` + response.headers.get("location");
+    patchEndpoint = response.headers.get("location");
     console.log("Sucessfully initialized WHEP connection")
 
-    for (const candidate of candidates) {
-      sendCandidate(candidate);
-    }
-
   } else {
-    console.error(`Failed to initialize WHEP connection, received status ${response.status}`);
+    console.error(`Failed to initialize WHEP connection, status: ${response.status}`);
     return;
+  }
+
+  for (const candidate of candidates) {
+    sendCandidate(candidate);
   }
 
   let sdp = await response.text();
   await pc.setRemoteDescription({ type: "answer", sdp: sdp });
-}
-
-function sendCandidate(candidate) {
-  fetch(resourceLocation, {
-    method: "PATCH",
-    cache: "no-cache",
-    headers: {
-      "Content-Type": "application/trickle-ice-sdpfrag"
-    },
-    body: candidate
-  }).then((response => {
-    if (response.status === 204) {
-      console.log(`Successfully sent ICE candidate: ${candidate}.`);
-    } else {
-      console.log(`Failed to send ICE candidate: ${candidate}, reason: ${response.status}`)
-    }
-  }))
 }
 
 connect();

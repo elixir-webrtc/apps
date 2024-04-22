@@ -19,7 +19,13 @@ defmodule ConfigParser do
   end
 end
 
+ip = System.get_env("BCR_IP", "127.0.0.1") |> ConfigParser.parse_ip!()
+port = System.get_env("BCR_PORT", "5002") |> ConfigParser.parse_port!()
+host = System.get_env("BCR_HOST", "http://localhost:#{port}")
+token = System.get_env("BCR_TOKEN", "test")
+
 config :broadcaster,
-  ip: System.get_env("BCR_IP", "0.0.0.0") |> ConfigParser.parse_ip!(),
-  port: System.get_env("BCR_PORT", "5002") |> ConfigParser.parse_port!(),
-  token: System.get_env("BCR_TOKEN", "test")
+  ip: ip,
+  port: port,
+  token: token,
+  host: host
