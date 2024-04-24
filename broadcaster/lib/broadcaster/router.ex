@@ -4,6 +4,7 @@ defmodule Broadcaster.Router do
   alias ExWebRTC.PeerConnection
   alias Broadcaster.{Forwarder, PeerSupervisor}
 
+  plug(Corsica, origins: "*")
   plug(Plug.Logger)
   plug(Plug.Static, at: "/", from: :broadcaster)
   plug(:match)
