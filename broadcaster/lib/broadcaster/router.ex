@@ -7,11 +7,40 @@ defmodule Broadcaster.Router do
   plug(Corsica, origins: "*")
   plug(Plug.Logger)
   plug(Plug.Static, at: "/", from: :broadcaster)
+  plug(Plug.Static, at: "/admin", from: :broadcaster)
   plug(:match)
   plug(:dispatch)
 
   get "/" do
     send_file(conn, 200, Application.app_dir(:broadcaster, "priv/static/index.html"))
+  end
+
+  get "/admin/stream" do
+    case get_req_header(conn, "authorization") do
+      [] ->
+        conn
+        |> put_resp_header("www-authenticate", "Basic realm=\"insert realm\"")
+        |> resp(401, "Unauthorized")
+        |> send_resp()
+
+      ["Basic " <> token] ->
+        username = Application.fetch_env!(:broadcaster, :admin_username)
+        password = Application.fetch_env!(:broadcaster, :admin_password)
+        # in basic auth, username and password are joined with ":"
+        creds = username <> ":" <> password
+
+        if creds == Base.decode64!(token) do
+          send_file(
+            conn,
+            200,
+            Application.app_dir(:broadcaster, "priv/static/stream/stream.html")
+          )
+        else
+          conn
+          |> resp(401, "Unauthorized")
+          |> send_resp()
+        end
+    end
   end
 
   # TODO: not all of RFC's endpoints are implemented

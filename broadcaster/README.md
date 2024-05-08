@@ -21,6 +21,8 @@ export BCR_IP="127.0.0.1"
 export BCR_PORT="5002"
 export BCR_TOKEN="test"
 export BCR_HOST="http://localhost:$BCR_PORT"
+export BCR_ADMIN_USERNAME="admin"
+export BCR_ADMIN_PASSWORD="admin"
 ```
 
 Run the app
