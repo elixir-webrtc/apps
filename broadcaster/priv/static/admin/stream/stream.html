@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" type="text/css" href="stream.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <title>Broadcaster | Elixir WebRTC</title>
+</head>
+
+<body>
+  <h1>Stream Panel</h1>
+
+  <div>
+    <div class="container">
+      <label for="audioDevices">Audio Input Device:</label>
+      <select id="audioDevices"></select>
+    </div>
+    <div class="container">
+      <label for="videoDevices">Video Input Device:</label>
+      <select id="videoDevices"></select>
+    </div>
+    <div class="container">
+      <label for="serverUrl">Server URL</label>
+      <input type="text" id="serverUrl" />
+    </div>
+    <div class="container">
+      <label for="serverToken"> Server Token </label>
+      <input type="text" id="serverToken" />
+    </div>
+    <div class="container">
+      <button id="button">Start streaming</button>
+    </div>
+    <div class="container">
+      <h3>Preview</h3>
+      <video id="previewPlayer" controls autoplay muted></video>
+    </div>
+  </div>
+
+  <script src="stream.js"></script>
+</body>
+
+</html>
