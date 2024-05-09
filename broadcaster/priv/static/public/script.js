@@ -1,5 +1,6 @@
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const whepEndpoint = `${window.location.origin}/api/whep`;
+const endpointBase = window.location.href.split("/").slice(0, -1).join("/");
+const whepEndpoint = `${endpointBase}/api/whep`;
 const videoPlayer = document.getElementById("videoPlayer");
 const candidates = [];
 let patchEndpoint;
