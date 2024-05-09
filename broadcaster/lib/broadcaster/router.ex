@@ -10,13 +10,18 @@ defmodule Broadcaster.Router do
   plug(:dispatch)
 
   get "/" do
-    path = String.trim_trailing(conn.request_path, "/") <> "/index.html"
+    redirect(conn, "index.html")
+  end
+
+  forward("/api", to: __MODULE__.Api)
+  forward("/admin", to: __MODULE__.Admin)
+
+  def redirect(conn, to) do
+    host = Application.fetch_env!(:broadcaster, :host)
+    path = host <> String.trim_trailing(conn.request_path, "/") <> "/" <> to
 
     conn
     |> put_resp_header("location", path)
     |> send_resp(302, "")
   end
-
-  forward("/api", to: __MODULE__.Api)
-  forward("/admin", to: __MODULE__.Admin)
 end

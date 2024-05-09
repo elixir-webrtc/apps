@@ -1,6 +1,8 @@
 defmodule Broadcaster.Router.Admin do
   use Plug.Router
 
+  alias Broadcaster.Router
+
   @admin_assets "priv/static/admin"
 
   plug(:authorize)
@@ -26,11 +28,7 @@ defmodule Broadcaster.Router.Admin do
   end
 
   get "/stream" do
-    path = String.trim_trailing(conn.request_path, "/") <> "/stream.html"
-
-    conn
-    |> put_resp_header("location", path)
-    |> send_resp(302, "")
+    Router.redirect(conn, "stream.html")
   end
 
   match _ do
