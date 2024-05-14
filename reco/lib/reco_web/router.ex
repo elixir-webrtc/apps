@@ -41,9 +41,8 @@ defmodule RecoWeb.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard",
-        metrics: RecoWeb.Telemetry
-
-      # additional_pages: [route_name: ExWebRTCDashboard]
+        metrics: RecoWeb.Telemetry,
+        additional_pages: [route_name: ExWebRTCDashboard]
     end
   end
 end

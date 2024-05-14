@@ -20,7 +20,7 @@ defmodule Broadcaster.MixProject do
 
   defp deps do
     [
-      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"},
+      {:ex_webrtc, "~> 0.2.0"},
       {:plug, "~> 1.15.0"},
       {:bandit, "~> 1.4.0"},
       {:corsica, "~> 2.0.0"},
