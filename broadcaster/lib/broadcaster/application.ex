@@ -18,7 +18,8 @@ defmodule Broadcaster.Application do
       BroadcasterWeb.Presence,
       Broadcaster.PeerSupervisor,
       Broadcaster.Forwarder,
-      {Registry, name: Broadcaster.PeerRegistry, keys: :unique}
+      {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
+      {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
