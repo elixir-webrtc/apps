@@ -1,0 +1,28 @@
+<div id="player" phx-hook="Player" class="p-10">
+  <h1>WHIP Player</h1>
+  <div>
+    <div class="p-2">
+      <label for="audioDevices">Audio Input Device:</label>
+      <select id="audioDevices"></select>
+    </div>
+    <div class="p-2">
+      <label for="videoDevices">Video Input Device:</label>
+      <select id="videoDevices"></select>
+    </div>
+    <div class="p-2">
+      <label for="serverUrl">Server URL</label>
+      <input type="text" id="serverUrl" />
+    </div>
+    <div class="p-2">
+      <label for="serverToken"> Server Token </label>
+      <input type="text" id="serverToken" />
+    </div>
+    <div class="p-2">
+      <button id="button">Start streaming</button>
+    </div>
+    <div class="p-2">
+      <h3>Preview</h3>
+      <video id="previewPlayer" controls autoplay muted></video>
+    </div>
+  </div>
+</div>

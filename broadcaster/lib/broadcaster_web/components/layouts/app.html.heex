@@ -1,0 +1,26 @@
+<header class="px-4 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between border-b border-brand/15 py-3 text-sm">
+    <div class="flex items-center gap-4">
+      <a href="/">
+        <img src={~p"/images/logo.svg"} width="225" />
+      </a>
+    </div>
+    <div class="flex items-center gap-4 font-semibold leading-6 text-brand/80">
+      <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-brand">
+        GitHub
+      </a>
+      <a
+        href="https://hexdocs.pm/ex_webrtc/readme.html"
+        class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20"
+      >
+        Docs <span aria-hidden="true">&rarr;</span>
+      </a>
+    </div>
+  </div>
+</header>
+<main class="flex-1">
+  <div class="m-auto py-7">
+    <.flash_group flash={@flash} />
+    <%= @inner_content %>
+  </div>
+</main>
