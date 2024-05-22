@@ -64,7 +64,8 @@ defmodule Broadcaster.PeerSupervisor do
     pc_id = generate_pc_id()
     {:ok, pc} = spawn_peer_connection(pc_id)
 
-    Logger.info("Received offer for #{inspect(pc)}, SDP:\n#{offer.sdp}")
+    Logger.info("Received offer for #{inspect(pc)}")
+    Logger.debug("Offer SDP for #{inspect(pc)}:\n#{offer.sdp}")
 
     with :ok <- PeerConnection.set_remote_description(pc, offer),
          :ok <- setup_transceivers(pc, direction),
@@ -72,7 +73,8 @@ defmodule Broadcaster.PeerSupervisor do
          :ok <- PeerConnection.set_local_description(pc, answer),
          :ok <- gather_candidates(pc),
          answer <- PeerConnection.get_local_description(pc) do
-      Logger.info("Sent answer for #{inspect(pc)}, SDP:\n#{answer.sdp}")
+      Logger.info("Sent answer for #{inspect(pc)}")
+      Logger.debug("Answer SDP for #{inspect(pc)}:\n#{answer.sdp}")
 
       {:ok, pc, pc_id, answer.sdp}
     else
