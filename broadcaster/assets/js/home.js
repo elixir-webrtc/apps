@@ -1,6 +1,5 @@
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const endpointBase = window.location.href.split("/").slice(0, -1).join("/");
-const whepEndpoint = `${endpointBase}/api/whep`;
+const whepEndpoint = `${window.location.origin}/api/whep`
 const videoPlayer = document.getElementById("videoPlayer");
 const candidates = [];
 let patchEndpoint;
@@ -74,4 +73,8 @@ async function connect() {
   await pc.setRemoteDescription({ type: "answer", sdp: sdp });
 }
 
-connect();
+export const Home = {
+  mounted() {
+    connect()
+  }
+}

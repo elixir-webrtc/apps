@@ -1,20 +1,9 @@
 defmodule Broadcaster do
-  use Application
+  @moduledoc """
+  Broadcaster keeps the contexts that define your domain
+  and business logic.
 
-  alias __MODULE__.{Forwarder, PeerSupervisor, Router}
-
-  @impl true
-  def start(_type, _args) do
-    ip = Application.fetch_env!(:broadcaster, :ip)
-    port = Application.fetch_env!(:broadcaster, :port)
-
-    children = [
-      {Bandit, plug: Router, scheme: :http, ip: ip, port: port},
-      PeerSupervisor,
-      Forwarder,
-      {Registry, name: __MODULE__.PeerRegistry, keys: :unique}
-    ]
-
-    Supervisor.start_link(children, strategy: :one_for_all, name: __MODULE__.Supervisor)
-  end
+  Contexts are also responsible for managing your data, regardless
+  if it comes from the database, an external API or others.
+  """
 end

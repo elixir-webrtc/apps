@@ -122,4 +122,8 @@ async function run() {
   bindControls();
 }
 
-run();
+export const Player = {
+  mounted() {
+    run()
+  }
+}
