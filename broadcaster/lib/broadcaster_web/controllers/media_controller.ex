@@ -63,8 +63,7 @@ defmodule BroadcasterWeb.MediaController do
   end
 
   defp authenticate(conn) do
-    # valid_token = Application.fetch_env!(:broadcaster, :token)
-    valid_token = "example"
+    valid_token = Application.fetch_env!(:broadcaster, :whip_token)
 
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          true <- token == valid_token do
