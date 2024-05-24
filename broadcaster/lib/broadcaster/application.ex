@@ -15,6 +15,7 @@ defmodule Broadcaster.Application do
       # {Broadcaster.Worker, arg},
       # Start to serve requests, typically the last entry
       BroadcasterWeb.Endpoint,
+      BroadcasterWeb.Presence,
       Broadcaster.PeerSupervisor,
       Broadcaster.Forwarder,
       {Registry, name: Broadcaster.PeerRegistry, keys: :unique}
