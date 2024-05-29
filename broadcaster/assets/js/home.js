@@ -1,6 +1,8 @@
+import { connectChat } from "./chat.js"
+
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const whepEndpoint = `${window.location.origin}/api/whep`
-const videoPlayer = document.getElementById("videoPlayer");
+const videoPlayer = document.getElementById("videoplayer");
 const candidates = [];
 let patchEndpoint;
 
@@ -21,7 +23,7 @@ async function sendCandidate(candidate) {
   }
 }
 
-async function connect() {
+async function connectMedia() {
   const pc = new RTCPeerConnection(pcConfig);
 
   pc.ontrack = event => videoPlayer.srcObject = event.streams[0];
@@ -75,6 +77,7 @@ async function connect() {
 
 export const Home = {
   mounted() {
-    connect()
+    connectMedia()
+    connectChat()
   }
 }
