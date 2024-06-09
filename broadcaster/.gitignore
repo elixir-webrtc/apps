@@ -35,3 +35,4 @@ broadcaster-*.tar
 npm-debug.log
 /assets/node_modules/
 
+/recordings/

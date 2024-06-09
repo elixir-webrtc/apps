@@ -3,7 +3,7 @@ defmodule Broadcaster.Forwarder do
 
   require Logger
 
-  alias Broadcaster.PeerSupervisor
+  alias Broadcaster.{PeerSupervisor, Recorder}
   alias ExWebRTC.PeerConnection
 
   @spec start_link(any()) :: GenServer.on_start()
@@ -21,6 +21,16 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, {:connect_output, pc})
   end
 
+  @spec connect_recorder() :: :ok
+  def connect_recorder() do
+    GenServer.call(__MODULE__, :connect_recorder)
+  end
+
+  @spec disconnect_recorder() :: :ok
+  def disconnect_recorder() do
+    GenServer.call(__MODULE__, :disconnect_recorder)
+  end
+
   @impl true
   def init(_arg) do
     state = %{
@@ -28,7 +38,8 @@ defmodule Broadcaster.Forwarder do
       audio_input: nil,
       video_input: nil,
       pending_outputs: [],
-      outputs: %{}
+      outputs: %{},
+      recorder: false
     }
 
     {:ok, state}
@@ -41,11 +52,13 @@ defmodule Broadcaster.Forwarder do
     end
 
     PeerConnection.controlling_process(pc, self())
-    {audio_track_id, video_track_id} = get_tracks(pc, :receiver)
+    {audio_track, video_track} = get_tracks(pc, :receiver)
+
+    if state.recorder, do: Recorder.add_tracks([audio_track, video_track])
 
     Logger.info("Successfully added input #{inspect(pc)}")
 
-    state = %{state | input_pc: pc, audio_input: audio_track_id, video_input: video_track_id}
+    state = %{state | input_pc: pc, audio_input: audio_track.id, video_input: video_track.id}
     {:reply, :ok, state}
   end
 
@@ -57,6 +70,23 @@ defmodule Broadcaster.Forwarder do
     Logger.info("Added new output #{inspect(pc)}")
 
     {:reply, :ok, %{state | pending_outputs: pending_outputs}}
+  end
+
+  @impl true
+  def handle_call(:connect_recorder, _from, %{recorder: false} = state) do
+    Process.monitor(Recorder)
+
+    if state.input_pc do
+      {audio_track, video_track} = get_tracks(state.input_pc, :receiver)
+      :ok = Recorder.add_tracks([audio_track, video_track])
+    end
+
+    {:reply, :ok, %{state | recorder: true}}
+  end
+
+  @impl true
+  def handle_call(:disconnect_recorder, _from, %{recorder: true} = state) do
+    {:reply, :ok, %{state | recorder: false}}
   end
 
   @impl true
@@ -73,9 +103,9 @@ defmodule Broadcaster.Forwarder do
     state =
       if Enum.member?(state.pending_outputs, pc) do
         pending_outputs = List.delete(state.pending_outputs, pc)
-        {audio_track_id, video_track_id} = get_tracks(pc, :sender)
+        {audio_track, video_track} = get_tracks(pc, :sender)
 
-        outputs = Map.put(state.outputs, pc, %{audio: audio_track_id, video: video_track_id})
+        outputs = Map.put(state.outputs, pc, %{audio: audio_track.id, video: video_track.id})
 
         if state.input_pc != nil do
           :ok = PeerConnection.send_pli(state.input_pc, state.video_input)
@@ -100,6 +130,8 @@ defmodule Broadcaster.Forwarder do
       PeerConnection.send_rtp(pc, track_id, packet)
     end
 
+    if state.recorder, do: Recorder.record(id, packet)
+
     {:noreply, state}
   end
 
@@ -111,6 +143,8 @@ defmodule Broadcaster.Forwarder do
     for {pc, %{video: track_id}} <- state.outputs do
       PeerConnection.send_rtp(pc, track_id, packet)
     end
+
+    if state.recorder, do: Recorder.record(id, packet)
 
     {:noreply, state}
   end
@@ -140,9 +174,9 @@ defmodule Broadcaster.Forwarder do
     audio_transceiver = Enum.find(transceivers, fn tr -> tr.kind == :audio end)
     video_transceiver = Enum.find(transceivers, fn tr -> tr.kind == :video end)
 
-    audio_track_id = Map.fetch!(audio_transceiver, type).track.id
-    video_track_id = Map.fetch!(video_transceiver, type).track.id
+    audio_track = Map.fetch!(audio_transceiver, type).track
+    video_track = Map.fetch!(video_transceiver, type).track
 
-    {audio_track_id, video_track_id}
+    {audio_track, video_track}
   end
 end

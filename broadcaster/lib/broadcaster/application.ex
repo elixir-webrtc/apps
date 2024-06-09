@@ -17,6 +17,7 @@ defmodule Broadcaster.Application do
       BroadcasterWeb.Endpoint,
       BroadcasterWeb.Presence,
       Broadcaster.PeerSupervisor,
+      Broadcaster.RecorderSupervisor,
       Broadcaster.Forwarder,
       {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
       {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}

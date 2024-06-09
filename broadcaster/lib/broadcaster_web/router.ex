@@ -28,6 +28,8 @@ defmodule BroadcasterWeb.Router do
 
     get "/player", PageController, :player
 
+    live "/recorder", RecorderLive
+
     live_dashboard "/dashboard",
       metrics: BroadcasterWeb.Telemetry,
       additional_pages: [exwebrtc: ExWebRTCDashboard]

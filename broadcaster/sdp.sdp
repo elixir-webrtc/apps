@@ -1,0 +1,17 @@
+v=0 
+o=- 47036715319932885 0 IN IP4 127.0.0.1
+s=- 
+t=0 0 
+a=extmap_allow_mixed 
+a=group:BUNDLE 1 
+m=video 5556 UDP/TLS/RTP/SAVPF 120 124 
+c=IN IP4 127.0.0.1
+a=recvonly 
+a=mid:1 
+a=rtcp-mux 
+a=extmap:3 urn:ietf:params:rtp-hdrext:sdes:mid 
+a=extmap:7 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01 
+a=rtpmap:120 VP8/90000 
+a=fmtp:120 max-fs=12288;max-fr=60 
+a=rtpmap:124 rtx/90000 
+a=fmtp:124 apt=120 
