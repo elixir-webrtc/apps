@@ -16,17 +16,23 @@ async function setupStream() {
   const videoDevice = videoDevices.value;
   const audioDevice = audioDevices.value;
 
+  console.log(`Setting up stream: audioDevice: ${audioDevice}, videoDevice: ${videoDevice}`)
+
   localStream = await navigator.mediaDevices.getUserMedia({
-    video: { deviceId: { exact: videoDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } },
-    audio: { deviceId: { exact: audioDevice.deviceId } }
+    video: { deviceId: { exact: videoDevice }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: { deviceId: { exact: audioDevice } }
   });
+
+  console.log(`Obtained stream with id: ${localStream.id}`)
 
   previewPlayer.srcObject = localStream;
 }
 
 function closeStream() {
   if (localStream != undefined) {
+    console.log(`Closing stream with id: ${localStream.id}`)
     localStream.getTracks().forEach((track) => track.stop());
+    localStream = undefined;
   }
 }
 
@@ -101,13 +107,15 @@ async function run() {
   // ask for permissions
   localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
+  console.log(`Obtained stream with id: ${localStream.id}`);
+
   // enumerate devices
   const devices = await navigator.mediaDevices.enumerateDevices();
   devices.forEach((device) => {
     if (device.kind === 'videoinput') {
-      videoDevices.options[videoDevices.options.length] = new Option(device.label, device);
+      videoDevices.options[videoDevices.options.length] = new Option(device.label, device.deviceId);
     } else if (device.kind === 'audioinput') {
-      audioDevices.options[audioDevices.options.length] = new Option(device.label, device);
+      audioDevices.options[audioDevices.options.length] = new Option(device.label, device.deviceId);
     }
   });
 
