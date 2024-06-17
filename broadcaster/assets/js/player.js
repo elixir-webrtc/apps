@@ -1,5 +1,6 @@
 const audioDevices = document.getElementById('audioDevices');
 const videoDevices = document.getElementById('videoDevices');
+const maxVideoBitrate = document.getElementById('maxVideoBitrate');
 const serverUrl = document.getElementById('serverUrl');
 const serverToken = document.getElementById('serverToken');
 const button = document.getElementById('button');
@@ -63,6 +64,15 @@ async function startStreaming() {
   for (const track of localStream.getTracks()) {
     pc.addTrack(track);
   }
+
+  // limit max bitrate
+  pc.getSenders()
+    .filter((sender) => sender.track.kind === 'video')
+    .forEach(async (sender) => {
+      const params = sender.getParameters();
+      params.encodings[0].maxBitrate = parseInt(maxVideoBitrate.value) * 1024;
+      await sender.setParameters(params);
+    });
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer)
