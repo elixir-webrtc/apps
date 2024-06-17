@@ -36,6 +36,8 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call({:connect_input, pc}, _from, state) do
+    Process.monitor(pc)
+
     if state.input_pc != nil do
       PeerSupervisor.terminate_pc(state.input_pc)
     end
@@ -51,6 +53,8 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call({:connect_output, pc}, _from, state) do
+    Process.monitor(pc)
+
     PeerConnection.controlling_process(pc, self())
     pending_outputs = [pc | state.pending_outputs]
 
@@ -127,6 +131,19 @@ defmodule Broadcaster.Forwarder do
       end
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{input_pc: pid} = state) do
+    state = %{state | input_pc: nil, audio_input: nil, video_input: nil}
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state)
+      when is_map_key(state.outputs, pid) do
+    {_, state} = pop_in(state, [:outputs, pid])
     {:noreply, state}
   end
 
