@@ -3,11 +3,19 @@ defmodule Reco.Room do
 
   require Logger
 
-  alias ExWebRTC.{ICECandidate, PeerConnection, SessionDescription}
-  alias ExWebRTC.RTP.VP8Depayloader
+  alias ExWebRTC.{ICECandidate, PeerConnection, RTPCodecParameters, SessionDescription}
+  alias ExWebRTC.RTP.VP8.Depayloader
 
   @max_session_time_s Application.compile_env!(:reco, :max_session_time_s)
   @session_time_timer_interval_ms 1_000
+
+  @video_codecs [
+    %RTPCodecParameters{
+      payload_type: 96,
+      mime_type: "video/VP8",
+      clock_rate: 90_000
+    }
+  ]
 
   defp id(room_id), do: {:via, Registry, {Reco.RoomRegistry, room_id}}
 
@@ -39,7 +47,7 @@ defmodule Reco.Room do
        channel: nil,
        task: nil,
        video_track: nil,
-       video_depayloader: VP8Depayloader.new(),
+       video_depayloader: Depayloader.new(),
        video_decoder: Xav.Decoder.new(:vp8),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
@@ -49,7 +57,7 @@ defmodule Reco.Room do
   @impl true
   def handle_call({:connect, channel_pid}, _from, %{channel: nil} = state) do
     Process.monitor(channel_pid)
-    {:ok, pc} = PeerConnection.start_link()
+    {:ok, pc} = PeerConnection.start_link(video_codecs: @video_codecs)
 
     state =
       state
@@ -110,10 +118,10 @@ defmodule Reco.Room do
   end
 
   @impl true
-  def handle_info({:ex_webrtc, _pc, {:rtp, track_id, packet}}, state) do
+  def handle_info({:ex_webrtc, _pc, {:rtp, track_id, nil, packet}}, state) do
     cond do
       state.video_track.id == track_id ->
-        case VP8Depayloader.write(state.video_depayloader, packet) do
+        case Depayloader.write(state.video_depayloader, packet) do
           {:ok, d} ->
             state = %{state | video_depayloader: d}
             {:noreply, state}
