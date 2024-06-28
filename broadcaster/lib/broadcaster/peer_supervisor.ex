@@ -18,14 +18,7 @@ defmodule Broadcaster.PeerSupervisor do
     %RTPCodecParameters{
       payload_type: 96,
       mime_type: "video/H264",
-      clock_rate: 90_000,
-      rtcp_fbs: [%ExSDP.Attribute.RTCPFeedback{pt: 96, feedback_type: :nack}]
-    },
-    %RTPCodecParameters{
-      payload_type: 97,
-      mime_type: "video/rtx",
-      clock_rate: 90_000,
-      sdp_fmtp_line: %ExSDP.Attribute.FMTP{pt: 97, apt: 96}
+      clock_rate: 90_000
     }
   ]
 
@@ -87,8 +80,13 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp setup_transceivers(pc, direction) do
     if direction == :sendonly do
-      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:audio))
-      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:video))
+      media_stream_id = MediaStreamTrack.generate_stream_id()
+
+      {:ok, _sender} =
+        PeerConnection.add_track(pc, MediaStreamTrack.new(:audio, [media_stream_id]))
+
+      {:ok, _sender} =
+        PeerConnection.add_track(pc, MediaStreamTrack.new(:video, [media_stream_id]))
     end
 
     transceivers = PeerConnection.get_transceivers(pc)
