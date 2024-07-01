@@ -136,21 +136,24 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, reason}, %{input_pc: pid} = state) do
-    Logger.info("Process: #{inspect(pid)} exited with reason: #{inspect(reason)}")
+    Logger.info("Input process: #{inspect(pid)} exited with reason: #{inspect(reason)}")
     state = %{state | input_pc: nil, audio_input: nil, video_input: nil}
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-    Logger.info("Process: #{inspect(pid)} exited with reason: #{inspect(reason)}")
-
     cond do
       Map.has_key?(state.outputs, pid) ->
+        Logger.info("Output process: #{inspect(pid)} exited with reason: #{inspect(reason)}")
         {_, state} = pop_in(state, [:outputs, pid])
         {:noreply, state}
 
       pid in state.pending_outputs ->
+        Logger.info("""
+        Pending output process: #{inspect(pid)} exited with reason: #{inspect(reason)}\
+        """)
+
         pending_outputs = List.delete(state.pending_outputs, pid)
         {:noreply, %{state | pending_outputs: pending_outputs}}
     end
