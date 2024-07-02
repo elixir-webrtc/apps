@@ -75,9 +75,26 @@ async function connectMedia() {
   await pc.setRemoteDescription({ type: "answer", sdp: sdp });
 }
 
+async function changeLayer(layer) {
+  if (patchEndpoint) {
+    const response = await fetch(`${patchEndpoint}/layer`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({encodingId: layer})
+    });
+
+    console.log(response);
+  }
+}
+
 export const Home = {
   mounted() {
     connectMedia()
     connectChat()
+
+    document.getElementById("lowButton").onclick = _ => changeLayer("l")
+    document.getElementById("mediumButton").onclick = _ => changeLayer("m")
+    document.getElementById("highButton").onclick = _ => changeLayer("h")
   }
 }

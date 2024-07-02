@@ -18,7 +18,7 @@ defmodule BroadcasterWeb.MediaController do
       |> put_resp_content_type("application/sdp")
       |> resp(201, answer_sdp)
     else
-      {:error, _res} -> resp(conn, 400, "Bad request")
+      _other -> resp(conn, 400, "Bad request")
     end
     |> send_resp()
   end
@@ -27,12 +27,15 @@ defmodule BroadcasterWeb.MediaController do
     with {:ok, offer_sdp, conn} <- read_body(conn),
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
          :ok <- Forwarder.connect_output(pc) do
+      resource_uri = ~p"/api/resource/#{pc_id}"
       conn
-      |> put_resp_header("location", ~p"/api/resource/#{pc_id}")
+      |> put_resp_header("location", resource_uri)
+      |> put_resp_header("link", ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:layer"|)
+      |> put_resp_header("link", ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:server-sent-events"; events="layers"|)
       |> put_resp_content_type("application/sdp")
       |> resp(201, answer_sdp)
     else
-      {:error, _res} -> resp(conn, 400, "Bad request")
+      _other -> resp(conn, 400, "Bad request")
     end
     |> send_resp()
   end
@@ -53,6 +56,18 @@ defmodule BroadcasterWeb.MediaController do
 
       {:error, _res} ->
         resp(conn, 400, "Bad request")
+    end
+    |> send_resp()
+  end
+
+  def layer(conn, %{"resource_id" => resource_id}) do
+    with [{pid, _}] <- Registry.lookup(Broadcaster.PeerRegistry, resource_id),
+         :ok <- Forwarder.set_layer(pid, conn.body_params["encodingId"]) do
+      resp(conn, 200, "")
+    else
+      other ->
+        dbg(other)
+        resp(conn, 400, "Bad reqeust")
     end
     |> send_resp()
   end

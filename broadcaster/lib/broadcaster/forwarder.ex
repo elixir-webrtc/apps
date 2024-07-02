@@ -6,9 +6,16 @@ defmodule Broadcaster.Forwarder do
   alias Broadcaster.PeerSupervisor
   alias ExWebRTC.PeerConnection
 
+  alias ExWebRTC.RTP.Munger
+
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(_arg) do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  @spec set_layer(pid(), String.t()) :: :ok | :error
+  def set_layer(pc, layer) do
+    GenServer.call(__MODULE__, {:set_layer, pc, layer})
   end
 
   @spec connect_input(pid()) :: :ok
@@ -28,10 +35,29 @@ defmodule Broadcaster.Forwarder do
       audio_input: nil,
       video_input: nil,
       pending_outputs: [],
-      outputs: %{}
+      outputs: %{},
+      mungers: %{},
+      available_layers: nil
     }
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:set_layer, pc, layer}, _from, state) do
+    with true <- layer in state.available_layers,
+         {:ok, output} <- Map.fetch(state.outputs, pc) do
+      munger = Munger.update(output.munger)
+      output = %{output | munger: munger, layer: layer}
+      state = %{state | outputs: Map.put(state.outputs, pc, output)}
+      if state.input_pc != nil do
+        :ok = PeerConnection.send_pli(state.input_pc, state.video_input, layer)
+      end
+
+      {:reply, :ok, state}
+    else
+      _other -> {:reply, :error, state}
+    end
   end
 
   @impl true
@@ -43,11 +69,18 @@ defmodule Broadcaster.Forwarder do
     end
 
     PeerConnection.controlling_process(pc, self())
-    {audio_track_id, video_track_id} = get_tracks(pc, :receiver)
+    {audio_track, video_track} = get_tracks(pc, :receiver)
 
     Logger.info("Successfully added input #{inspect(pc)}")
 
-    state = %{state | input_pc: pc, audio_input: audio_track_id, video_input: video_track_id}
+    state = %{
+      state
+      | input_pc: pc,
+        audio_input: audio_track.id,
+        video_input: video_track.id,
+        available_layers: video_track.rids
+    }
+
     {:reply, :ok, state}
   end
 
@@ -77,12 +110,14 @@ defmodule Broadcaster.Forwarder do
     state =
       if Enum.member?(state.pending_outputs, pc) do
         pending_outputs = List.delete(state.pending_outputs, pc)
-        {audio_track_id, video_track_id} = get_tracks(pc, :sender)
+        {audio_track, video_track} = get_tracks(pc, :sender)
 
-        outputs = Map.put(state.outputs, pc, %{audio: audio_track_id, video: video_track_id})
+        munger = Munger.new(90_000)
+        output = %{audio: audio_track.id, video: video_track.id, munger: munger, layer: "h"}
+        outputs = Map.put(state.outputs, pc, output)
 
         if state.input_pc != nil do
-          :ok = PeerConnection.send_pli(state.input_pc, state.video_input)
+          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, "h")
         end
 
         Logger.info("Output #{inspect(pc)} has successfully connected")
@@ -109,14 +144,19 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_info(
-        {:ex_webrtc, input_pc, {:rtp, id, nil, packet}},
+        {:ex_webrtc, input_pc, {:rtp, id, rid, packet}},
         %{input_pc: input_pc, video_input: id} = state
       ) do
-    for {pc, %{video: track_id}} <- state.outputs do
-      PeerConnection.send_rtp(pc, track_id, packet)
-    end
+    outputs =
+      Map.new(state.outputs, fn
+        {pc, output} when output.layer == rid ->
+          {packet, munger} = Munger.munge(output.munger, packet)
+          PeerConnection.send_rtp(pc, output.video, packet)
+          {pc, %{output | munger: munger}}
+        {pc, output} -> {pc, output}
+      end)
 
-    {:noreply, state}
+    {:noreply, %{state | outputs: outputs}}
   end
 
   @impl true
@@ -124,7 +164,7 @@ defmodule Broadcaster.Forwarder do
     for packet <- packets do
       case packet do
         %ExRTCP.Packet.PayloadFeedback.PLI{} when state.input_pc != nil ->
-          :ok = PeerConnection.send_pli(state.input_pc, state.video_input)
+          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, "h")
 
         _other ->
           :ok
@@ -169,9 +209,9 @@ defmodule Broadcaster.Forwarder do
     audio_transceiver = Enum.find(transceivers, fn tr -> tr.kind == :audio end)
     video_transceiver = Enum.find(transceivers, fn tr -> tr.kind == :video end)
 
-    audio_track_id = Map.fetch!(audio_transceiver, type).track.id
-    video_track_id = Map.fetch!(video_transceiver, type).track.id
+    audio_track = Map.fetch!(audio_transceiver, type).track
+    video_track = Map.fetch!(video_transceiver, type).track
 
-    {audio_track_id, video_track_id}
+    {audio_track, video_track}
   end
 end

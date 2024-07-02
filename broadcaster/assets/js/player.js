@@ -6,6 +6,8 @@ const serverToken = document.getElementById('serverToken');
 const button = document.getElementById('button');
 const previewPlayer = document.getElementById('previewPlayer');
 
+const mediaConstraints = {video: {width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 24}}, audio: true}
+
 let localStream = undefined;
 let pc = undefined;
 
@@ -61,18 +63,28 @@ async function startStreaming() {
   disableControls();
 
   pc = new RTCPeerConnection();
-  for (const track of localStream.getTracks()) {
-    pc.addTrack(track);
-  }
+  pc.addTrack(localStream.getAudioTracks()[0], localStream);
+  pc.addTransceiver(localStream.getVideoTracks()[0], {
+    streams: [localStream],
+    sendEncodings: [
+      { rid: "h", maxBitrate: 1200 * 1024},
+      { rid: "m", scaleResolutionDownBy: 2, maxBitrate: 600 * 1024},
+      { rid: "l", scaleResolutionDownBy: 4, maxBitrate: 300 * 1024 },
+    ],
+  });
+
+  // for (const track of localStream.getTracks()) {
+  //   pc.addTrack(track);
+  // }
 
   // limit max bitrate
-  pc.getSenders()
-    .filter((sender) => sender.track.kind === 'video')
-    .forEach(async (sender) => {
-      const params = sender.getParameters();
-      params.encodings[0].maxBitrate = parseInt(maxVideoBitrate.value) * 1024;
-      await sender.setParameters(params);
-    });
+  // pc.getSenders()
+  //   .filter((sender) => sender.track.kind === 'video')
+  //   .forEach(async (sender) => {
+  //     const params = sender.getParameters();
+  //     params.encodings[0].maxBitrate = parseInt(maxVideoBitrate.value) * 1024;
+  //     await sender.setParameters(params);
+  //   });
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer)
@@ -115,7 +127,7 @@ function stopStreaming() {
 
 async function run() {
   // ask for permissions
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
   console.log(`Obtained stream with id: ${localStream.id}`);
 

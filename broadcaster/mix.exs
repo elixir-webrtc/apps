@@ -52,8 +52,8 @@ defmodule Broadcaster.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
-      {:ex_webrtc, "~> 0.3.0"},
-      {:ex_webrtc_dashboard, "~> 0.3.0"}
+      {:ex_webrtc, path: "~/repos/ex_webrtc", override: true},
+      {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"}
     ]
   end
 

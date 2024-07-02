@@ -80,13 +80,9 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp setup_transceivers(pc, direction) do
     if direction == :sendonly do
-      media_stream_id = MediaStreamTrack.generate_stream_id()
-
-      {:ok, _sender} =
-        PeerConnection.add_track(pc, MediaStreamTrack.new(:audio, [media_stream_id]))
-
-      {:ok, _sender} =
-        PeerConnection.add_track(pc, MediaStreamTrack.new(:video, [media_stream_id]))
+      stream_id = MediaStreamTrack.generate_stream_id()
+      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:audio, [stream_id]))
+      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:video, [stream_id]))
     end
 
     transceivers = PeerConnection.get_transceivers(pc)

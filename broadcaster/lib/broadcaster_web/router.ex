@@ -36,8 +36,12 @@ defmodule BroadcasterWeb.Router do
   scope "/api", BroadcasterWeb do
     post "/whip", MediaController, :whip
     post "/whep", MediaController, :whep
-    patch "/resource/:resource_id", MediaController, :ice_candidate
-    delete "/resource/:resource_id", MediaController, :remove_pc
+
+    scope "/resource/:resource_id" do
+      patch "/", MediaController, :ice_candidate
+      delete "/", MediaController, :remove_pc
+      post "/layer", MediaController, :layer
+    end
   end
 
   defp admin_auth(conn, _opts) do
