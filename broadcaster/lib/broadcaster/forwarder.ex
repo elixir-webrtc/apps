@@ -6,6 +6,7 @@ defmodule Broadcaster.Forwarder do
   alias Broadcaster.PeerSupervisor
   alias ExWebRTC.PeerConnection
 
+  alias ExWebRTC.RTP.H264
   alias ExWebRTC.RTP.Munger
 
   @spec start_link(any()) :: GenServer.on_start()
@@ -47,9 +48,9 @@ defmodule Broadcaster.Forwarder do
   def handle_call({:set_layer, pc, layer}, _from, state) do
     with true <- layer in state.available_layers,
          {:ok, output} <- Map.fetch(state.outputs, pc) do
-      munger = Munger.update(output.munger)
-      output = %{output | munger: munger, layer: layer}
+      output = %{output | pending_layer: layer}
       state = %{state | outputs: Map.put(state.outputs, pc, output)}
+
       if state.input_pc != nil do
         :ok = PeerConnection.send_pli(state.input_pc, state.video_input, layer)
       end
@@ -113,7 +114,15 @@ defmodule Broadcaster.Forwarder do
         {audio_track, video_track} = get_tracks(pc, :sender)
 
         munger = Munger.new(90_000)
-        output = %{audio: audio_track.id, video: video_track.id, munger: munger, layer: "h"}
+
+        output = %{
+          audio: audio_track.id,
+          video: video_track.id,
+          munger: munger,
+          layer: "h",
+          pending_layer: "h"
+        }
+
         outputs = Map.put(state.outputs, pc, output)
 
         if state.input_pc != nil do
@@ -148,12 +157,25 @@ defmodule Broadcaster.Forwarder do
         %{input_pc: input_pc, video_input: id} = state
       ) do
     outputs =
-      Map.new(state.outputs, fn
-        {pc, output} when output.layer == rid ->
-          {packet, munger} = Munger.munge(output.munger, packet)
-          PeerConnection.send_rtp(pc, output.video, packet)
-          {pc, %{output | munger: munger}}
-        {pc, output} -> {pc, output}
+      Map.new(state.outputs, fn {pc, %{layer: layer, pending_layer: p_layer} = output} ->
+        output =
+          if p_layer == rid and p_layer != layer and H264.keyframe?(packet) do
+            munger = Munger.update(output.munger)
+            %{output | layer: p_layer, munger: munger}
+          else
+            output
+          end
+
+        output =
+          if rid == output.layer do
+            {packet, munger} = Munger.munge(output.munger, packet)
+            PeerConnection.send_rtp(pc, output.video, packet)
+            %{output | munger: munger}
+          else
+            output
+          end
+
+        {pc, output}
       end)
 
     {:noreply, %{state | outputs: outputs}}

@@ -28,10 +28,17 @@ defmodule BroadcasterWeb.MediaController do
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
          :ok <- Forwarder.connect_output(pc) do
       resource_uri = ~p"/api/resource/#{pc_id}"
+
       conn
       |> put_resp_header("location", resource_uri)
-      |> put_resp_header("link", ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:layer"|)
-      |> put_resp_header("link", ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:server-sent-events"; events="layers"|)
+      |> put_resp_header(
+        "link",
+        ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:layer"|
+      )
+      |> put_resp_header(
+        "link",
+        ~s|<#{resource_uri}/layer>; rel="urn:ietf:params:whep:ext:core:server-sent-events"; events="layers"|
+      )
       |> put_resp_content_type("application/sdp")
       |> resp(201, answer_sdp)
     else
