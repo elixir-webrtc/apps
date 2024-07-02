@@ -1,5 +1,11 @@
 import { connectChat } from "./chat.js"
 
+const chatToggler = document.getElementById("chat-toggler");
+const chat = document.getElementById("chat");
+const settingsToggler = document.getElementById("settings-toggler");
+const settings = document.getElementById("settings");
+const videoQuality = document.getElementById("video-quality");
+
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const whepEndpoint = `${window.location.origin}/api/whep`
 const videoPlayer = document.getElementById("videoplayer");
@@ -84,14 +90,40 @@ async function changeLayer(layer) {
       body: JSON.stringify({encodingId: layer})
     });
 
-    console.log(response);
+    if (response.status != 200) {
+      videoQuality.disabled = true;
+    }
   }
+}
+
+function toggleBox(element, other) {
+    if (window.getComputedStyle(element).display === "none") {
+      element.style.display = "flex";
+      other.style.display = "none";
+
+      // For screen's width lower than 1024,
+      // eiter show video player or chat at the same time.
+      if (window.innerWidth < 1024) {
+        document.getElementById("videoplayer-wrapper").style.display = "none";
+      }
+    } else {
+      element.style.display = "none";
+
+      if (window.innerWidth < 1024) {
+        document.getElementById("videoplayer-wrapper").style.display = "block";
+      }
+    } 
 }
 
 export const Home = {
   mounted() {
     connectMedia()
     connectChat()
+
+    videoQuality.onchange = () => changeLayer(videoQuality.value)
+
+    chatToggler.onclick = () => toggleBox(chat, settings);
+    settingsToggler.onclick = () => toggleBox(settings, chat);
 
     document.getElementById("lowButton").onclick = _ => changeLayer("l")
     document.getElementById("mediumButton").onclick = _ => changeLayer("m")

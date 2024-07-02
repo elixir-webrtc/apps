@@ -1,7 +1,4 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <button id="lowButton">LOW</button>
-  <button id="mediumButton">MEDIUM</button>
-  <button id="highButton">HIGH</button>
   <div id="videoplayer-wrapper" class="grow">
     <video
       id="videoplayer"
@@ -39,6 +36,23 @@
           Join
         </button>
       </div>
+    </div>
+  </div>
+  <div
+    id="settings"
+    class="hidden overflow-hidden justify-start h-full text-wrap break-words w-96 p-7 border-brand/50 border-2 rounded-xl"
+  >
+    <div class="">
+      <label for="video-quality" class="font-semibold text-brand/100">Video quality</label>
+      <select
+        name="video-quality"
+        id="video-quality"
+        class="border-brand/50 text-brand/90 rounded-xl"
+      >
+        <option value="h">High</option>
+        <option value="m">Medium</option>
+        <option value="l">Low</option>
+      </select>
     </div>
   </div>
 </div>

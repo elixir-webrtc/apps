@@ -73,7 +73,6 @@ defmodule BroadcasterWeb.MediaController do
       resp(conn, 200, "")
     else
       other ->
-        dbg(other)
         resp(conn, 400, "Bad reqeust")
     end
     |> send_resp()
