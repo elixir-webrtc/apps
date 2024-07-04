@@ -54,7 +54,7 @@ config :phoenix, :json_library, Jason
 
 config :mime, :types, %{
   "application/sdp" => ["sdp"],
-  "application/" => ["trickle-ice-sdpfrag"]
+  "application/trickle-ice-sdpfrag" => ["trickle-ice-sdpfrag"]
 }
 
 config :broadcaster,

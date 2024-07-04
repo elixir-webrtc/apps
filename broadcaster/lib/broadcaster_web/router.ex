@@ -40,6 +40,8 @@ defmodule BroadcasterWeb.Router do
     scope "/resource/:resource_id" do
       patch "/", MediaController, :ice_candidate
       delete "/", MediaController, :remove_pc
+      get "/sse/event-stream", MediaController, :event_stream
+      post "/sse", MediaController, :sse
       post "/layer", MediaController, :layer
     end
   end

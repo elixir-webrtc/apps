@@ -3,9 +3,7 @@ defmodule Broadcaster.Forwarder do
 
   require Logger
 
-  alias Broadcaster.PeerSupervisor
   alias ExWebRTC.PeerConnection
-
   alias ExWebRTC.RTP.H264
   alias ExWebRTC.RTP.Munger
 
@@ -17,6 +15,11 @@ defmodule Broadcaster.Forwarder do
   @spec set_layer(pid(), String.t()) :: :ok | :error
   def set_layer(pc, layer) do
     GenServer.call(__MODULE__, {:set_layer, pc, layer})
+  end
+
+  @spec get_layers() :: [String.t()] | nil
+  def get_layers() do
+    GenServer.call(__MODULE__, :get_layers)
   end
 
   @spec connect_input(pid()) :: :ok
@@ -46,7 +49,8 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call({:set_layer, pc, layer}, _from, state) do
-    with true <- layer in state.available_layers,
+    with true <- state.available_layers != nil,
+         true <- layer in state.available_layers,
          {:ok, output} <- Map.fetch(state.outputs, pc) do
       output = %{output | pending_layer: layer}
       state = %{state | outputs: Map.put(state.outputs, pc, output)}
@@ -62,11 +66,16 @@ defmodule Broadcaster.Forwarder do
   end
 
   @impl true
+  def handle_call(:get_layers, _from, state) do
+    {:reply, state.available_layers, state}
+  end
+
+  @impl true
   def handle_call({:connect_input, pc}, _from, state) do
     Process.monitor(pc)
 
     if state.input_pc != nil do
-      PeerSupervisor.terminate_pc(state.input_pc)
+      Logger.error("Previous input #{inspect(state.input_pc)} was not properly terminated")
     end
 
     PeerConnection.controlling_process(pc, self())
@@ -82,7 +91,14 @@ defmodule Broadcaster.Forwarder do
         available_layers: video_track.rids
     }
 
-    {:reply, :ok, state}
+    default_layer = default_layer(state)
+
+    outputs =
+      Map.new(state.outputs, fn {pid, output} ->
+        {pid, %{output | layer: default_layer, pending_layer: default_layer}}
+      end)
+
+    {:reply, :ok, %{state | outputs: outputs}}
   end
 
   @impl true
@@ -115,18 +131,20 @@ defmodule Broadcaster.Forwarder do
 
         munger = Munger.new(90_000)
 
+        layer = default_layer(state)
+
         output = %{
           audio: audio_track.id,
           video: video_track.id,
           munger: munger,
-          layer: "h",
-          pending_layer: "h"
+          layer: layer,
+          pending_layer: layer
         }
 
         outputs = Map.put(state.outputs, pc, output)
 
         if state.input_pc != nil do
-          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, "h")
+          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, layer)
         end
 
         Logger.info("Output #{inspect(pc)} has successfully connected")
@@ -186,7 +204,8 @@ defmodule Broadcaster.Forwarder do
     for packet <- packets do
       case packet do
         %ExRTCP.Packet.PayloadFeedback.PLI{} when state.input_pc != nil ->
-          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, "h")
+          layer = default_layer(state)
+          :ok = PeerConnection.send_pli(state.input_pc, state.video_input, layer)
 
         _other ->
           :ok
@@ -218,6 +237,9 @@ defmodule Broadcaster.Forwarder do
 
         pending_outputs = List.delete(state.pending_outputs, pid)
         {:noreply, %{state | pending_outputs: pending_outputs}}
+
+      true ->
+        dbg({pid, reason})
     end
   end
 
@@ -236,4 +258,7 @@ defmodule Broadcaster.Forwarder do
 
     {audio_track, video_track}
   end
+
+  defp default_layer(%{available_layers: nil}), do: nil
+  defp default_layer(%{available_layers: [first | _]}), do: first
 end
