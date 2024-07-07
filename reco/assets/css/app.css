@@ -3,3 +3,13 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+/* Hiding scrollbar for IE, Edge and Firefox */
+main {
+    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+  }
+  
+main::-webkit-scrollbar {
+    display: none;
+}

@@ -26,14 +26,14 @@ config :esbuild,
   version: "0.17.11",
   default: [
     args:
-      ~w(js/app.js js/reco.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+      ~w(js/app.js js/room.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]
 
 # Configure tailwind (the version is required)
 config :tailwind,
-  version: "3.3.2",
+  version: "3.4.4",
   default: [
     args: ~w(
       --config=tailwind.config.js

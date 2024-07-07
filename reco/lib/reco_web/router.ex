@@ -17,10 +17,9 @@ defmodule RecoWeb.Router do
   scope "/", RecoWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
-    live "/reco", RecoLive
-    live "/reco/lobby", LobbyLive
-    get "/reco/room/:room_id", RecoController, :room
+    live "/", RecoLive
+    live "/lobby", LobbyLive
+    get "/room/:room_id", RoomController, :room
   end
 
   # Other scopes may use custom stacks.
