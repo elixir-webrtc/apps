@@ -91,23 +91,26 @@ async function connectServerEvents() {
     body: JSON.stringify(["layers"])
   });
 
-  if (response.status === 201) {
-    const eventStream = response.headers.get("location");
-    const eventSource = new EventSource(eventStream);
-    eventSource.onopen = (ev) => {
-      console.log("EventStream opened", ev);
-    }
-
-    eventSource.onmessage = (ev) => {
-      const data = JSON.parse(ev.data);
-      updateLayers(data.layers)
-    };
-
-    eventSource.onerror = (ev) => {
-      console.log("EventStream closed", ev);
-      eventSource.close();
-    };
+  if (response.status !== 201) {
+    console.error(`Failed to fetch SSE endpoint, status: ${response.status}`);
+    return;
   }
+
+  const eventStream = response.headers.get("location");
+  const eventSource = new EventSource(eventStream);
+  eventSource.onopen = (ev) => {
+    console.log("EventStream opened", ev);
+  }
+
+  eventSource.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    updateLayers(data.layers)
+  };
+
+  eventSource.onerror = (ev) => {
+    console.log("EventStream closed", ev);
+    eventSource.close();
+  };
 }
 
 function updateLayers(new_layers) {
