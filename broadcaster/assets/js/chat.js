@@ -2,8 +2,6 @@ import { Socket, Presence } from "phoenix"
 
 export async function connectChat() {
   const viewercount = document.getElementById("viewercount");
-  const chatToggler = document.getElementById("chat-toggler");
-  const chat = document.getElementById("chat");
   const chatMessages = document.getElementById("chat-messages");
   const chatInput = document.getElementById("chat-input");
   const chatNickname = document.getElementById("chat-nickname");
@@ -83,23 +81,5 @@ export async function connectChat() {
 
   chatNickname.onclick = () => {
     chatNickname.classList.remove("invalid-input");
-  }
-
-  chatToggler.onclick = () => {
-    if (window.getComputedStyle(chat).display === "none") {
-      chat.style.display = "flex";
-
-      // For screen's width lower than 1024,
-      // eiter show video player or chat at the same time.
-      if (window.innerWidth < 1024) {
-        document.getElementById("videoplayer-wrapper").style.display = "none";
-      }
-    } else {
-      chat.style.display = "none";
-
-      if (window.innerWidth < 1024) {
-        document.getElementById("videoplayer-wrapper").style.display = "block";        
-      }
-    } 
   }
 }

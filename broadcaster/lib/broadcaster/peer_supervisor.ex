@@ -39,8 +39,13 @@ defmodule Broadcaster.PeerSupervisor do
   @spec start_whep(String.t()) :: {:ok, pid(), String.t()} | {:error, term()}
   def start_whep(offer_sdp), do: start_pc(offer_sdp, :sendonly)
 
-  @spec pc_name(String.t()) :: term()
-  def pc_name(id), do: {:via, Registry, {Broadcaster.PeerRegistry, id}}
+  @spec fetch_pid(String.t()) :: {:ok, pid()} | :error
+  def fetch_pid(id) do
+    case Registry.lookup(Broadcaster.PeerRegistry, id) do
+      [] -> :error
+      [{pid, _val}] -> {:ok, pid}
+    end
+  end
 
   @spec terminate_pc(pid()) :: :ok | {:error, :not_found}
   def terminate_pc(pc) do
@@ -80,13 +85,9 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp setup_transceivers(pc, direction) do
     if direction == :sendonly do
-      media_stream_id = MediaStreamTrack.generate_stream_id()
-
-      {:ok, _sender} =
-        PeerConnection.add_track(pc, MediaStreamTrack.new(:audio, [media_stream_id]))
-
-      {:ok, _sender} =
-        PeerConnection.add_track(pc, MediaStreamTrack.new(:video, [media_stream_id]))
+      stream_id = MediaStreamTrack.generate_stream_id()
+      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:audio, [stream_id]))
+      {:ok, _sender} = PeerConnection.add_track(pc, MediaStreamTrack.new(:video, [stream_id]))
     end
 
     transceivers = PeerConnection.get_transceivers(pc)
@@ -99,8 +100,7 @@ defmodule Broadcaster.PeerSupervisor do
   end
 
   defp spawn_peer_connection(id) do
-    name = pc_name(id)
-    gen_server_opts = [name: name]
+    gen_server_opts = [name: {:via, Registry, {Broadcaster.PeerRegistry, id}}]
     pc_opts = Keyword.put(@opts, :controlling_process, self())
 
     child_spec = %{

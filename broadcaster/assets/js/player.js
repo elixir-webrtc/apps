@@ -1,10 +1,14 @@
 const audioDevices = document.getElementById('audioDevices');
 const videoDevices = document.getElementById('videoDevices');
-const maxVideoBitrate = document.getElementById('maxVideoBitrate');
 const serverUrl = document.getElementById('serverUrl');
 const serverToken = document.getElementById('serverToken');
 const button = document.getElementById('button');
 const previewPlayer = document.getElementById('previewPlayer');
+const highVideoBitrate = document.getElementById('highVideoBitrate');
+const mediumVideoBitrate = document.getElementById('mediumVideoBitrate');
+const lowVideoBitrate = document.getElementById('lowVideoBitrate');
+
+const mediaConstraints = {video: {width: {ideal: 1280}, height: {ideal: 720}, frameRate: {ideal: 24}}, audio: true}
 
 let localStream = undefined;
 let pc = undefined;
@@ -61,16 +65,25 @@ async function startStreaming() {
   disableControls();
 
   pc = new RTCPeerConnection();
-  for (const track of localStream.getTracks()) {
-    pc.addTrack(track);
-  }
+  pc.addTrack(localStream.getAudioTracks()[0], localStream);
+  pc.addTransceiver(localStream.getVideoTracks()[0], {
+    streams: [localStream],
+    sendEncodings: [
+      { rid: "h", maxBitrate: 1500 * 1024},
+      { rid: "m", scaleResolutionDownBy: 2, maxBitrate: 600 * 1024},
+      { rid: "l", scaleResolutionDownBy: 4, maxBitrate: 300 * 1024 },
+    ],
+  });
 
   // limit max bitrate
   pc.getSenders()
     .filter((sender) => sender.track.kind === 'video')
     .forEach(async (sender) => {
       const params = sender.getParameters();
-      params.encodings[0].maxBitrate = parseInt(maxVideoBitrate.value) * 1024;
+      console.log(params.encodings);
+      params.encodings.find(e => e.rid === "h").maxBitrate = parseInt(highVideoBitrate.value) * 1024;
+      params.encodings.find(e => e.rid === "m").maxBitrate = parseInt(mediumVideoBitrate.value) * 1024;
+      params.encodings.find(e => e.rid === "l").maxBitrate = parseInt(lowVideoBitrate.value) * 1024;
       await sender.setParameters(params);
     });
 
@@ -115,7 +128,7 @@ function stopStreaming() {
 
 async function run() {
   // ask for permissions
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
   console.log(`Obtained stream with id: ${localStream.id}`);
 

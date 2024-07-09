@@ -6,23 +6,30 @@
       </a>
     </div>
     <div class="flex">
-      <div class="flex items-center gap-4 font-semibold leading-6 text-brand/80">
+      <div class="flex items-center gap-6 font-semibold leading-6 text-brand/80">
         <div class="flex gap-1">
           <p id="viewercount">0</p>
           <.icon name="hero-user-solid" />
         </div>
-        <div id="chat-toggler">
-          <.icon name="hero-chat-bubble-bottom-center" />
+        <div class="flex gap-2">
+          <button id="chat-toggler">
+            <.icon name="hero-chat-bubble-bottom-center" />
+          </button>
+          <button id="settings-toggler">
+            <.icon name="hero-cog-6-tooth" />
+          </button>
         </div>
-        <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-brand">
-          GitHub
-        </a>
-        <a
-          href="https://hexdocs.pm/ex_webrtc/readme.html"
-          class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20"
-        >
-          Docs <span aria-hidden="true">&rarr;</span>
-        </a>
+        <div class="flex items-center gap-2">
+          <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-brand">
+            GitHub
+          </a>
+          <a
+            href="https://hexdocs.pm/ex_webrtc/readme.html"
+            class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20"
+          >
+            Docs <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
       </div>
     </div>
   </div>

@@ -2,7 +2,7 @@
   <div id="videoplayer-wrapper" class="grow">
     <video
       id="videoplayer"
-      class="m-auto rounded-xl max-h-full max-w-full"
+      class="m-auto rounded-xl max-h-full w-full bg-black"
       autoplay
       controls
       muted
@@ -36,6 +36,22 @@
           Join
         </button>
       </div>
+    </div>
+  </div>
+  <div
+    id="settings"
+    class="hidden overflow-hidden justify-start h-full text-wrap break-words w-96 p-7 border-brand/50 border-2 rounded-xl"
+  >
+    <div class="">
+      <label for="video-quality" class="font-semibold text-brand/100">Video quality</label>
+      <select
+        disabled
+        name="video-quality"
+        id="video-quality"
+        class="border-brand/50 text-brand/90 rounded-xl"
+      >
+        <option>Disabled</option>
+      </select>
     </div>
   </div>
 </div>
