@@ -1,4 +1,6 @@
 defmodule Recognizer.Room do
+  @moduledoc false
+
   use GenServer, restart: :temporary
 
   require Logger
@@ -118,41 +120,49 @@ defmodule Recognizer.Room do
   end
 
   @impl true
-  def handle_info({:ex_webrtc, _pc, {:rtp, track_id, nil, packet}}, state) do
-    cond do
-      state.video_track.id == track_id ->
-        case Depayloader.write(state.video_depayloader, packet) do
-          {:ok, d} ->
-            state = %{state | video_depayloader: d}
-            {:noreply, state}
+  def handle_info(
+        {:ex_webrtc, _pc, {:rtp, track_id, nil, packet}},
+        %{video_track: %{id: track_id}} = state
+      ) do
+    {frame, state} =
+      case Depayloader.write(state.video_depayloader, packet) do
+        {:ok, d} ->
+          {nil, %{state | video_depayloader: d}}
 
-          {:ok, frame, d} ->
-            state = %{state | video_depayloader: d}
+        {:ok, frame, d} ->
+          {frame, %{state | video_depayloader: d}}
+      end
 
-            case Xav.Decoder.decode(state.video_decoder, frame) do
-              {:ok, frame} ->
-                tensor = Xav.Frame.to_nx(frame)
+    state =
+      with false <- is_nil(frame),
+           {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
+        tensor = Xav.Frame.to_nx(frame)
 
-                state =
-                  if state.task == nil do
-                    task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
-                    %{state | task: task}
-                  else
-                    state
-                  end
-
-                {:noreply, state}
-
-              {:error, :no_keyframe} ->
-                Logger.warning("Couldn't decode video frame - missing keyframe!")
-                {:noreply, state}
-            end
+        if is_nil(state.task) do
+          task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
+          %{state | task: task}
+        else
+          state
         end
+      else
+        true ->
+          state
 
-      state.audio_track.id == track_id ->
-        # Do something fun with the audio!
-        {:noreply, state}
-    end
+        {:error, :no_keyframe} ->
+          Logger.warning("Couldn't decode video frame - missing keyframe!")
+          state
+      end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:ex_webrtc, _pc, {:rtp, track_id, nil, _packet}},
+        %{audio_track: %{id: track_id}} = state
+      ) do
+    # Do something fun with the audio!
+    {:noreply, state}
   end
 
   @impl true

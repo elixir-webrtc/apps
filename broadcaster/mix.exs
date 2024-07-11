@@ -9,7 +9,13 @@ defmodule Broadcaster.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+
+      # dialyzer
+      dialyzer: [
+        plt_local_path: "_dialyzer",
+        plt_core_path: "_dialyzer"
+      ]
     ]
   end
 
@@ -53,7 +59,11 @@ defmodule Broadcaster.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", override: true},
-      {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"}
+      {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"},
+
+      # Dialyzer and credo
+      {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
+      {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 

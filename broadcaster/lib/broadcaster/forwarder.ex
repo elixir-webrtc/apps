@@ -1,4 +1,6 @@
 defmodule Broadcaster.Forwarder do
+  @moduledoc false
+
   use GenServer
 
   require Logger
@@ -239,7 +241,7 @@ defmodule Broadcaster.Forwarder do
         {:noreply, %{state | pending_outputs: pending_outputs}}
 
       true ->
-        dbg({pid, reason})
+        Logger.warning("Unknown process #{inspect(pid)} died with reason #{inspect(reason)}")
     end
   end
 

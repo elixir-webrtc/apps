@@ -1,4 +1,6 @@
 defmodule Broadcaster.PeerSupervisor do
+  @moduledoc false
+
   use DynamicSupervisor
 
   require Logger
@@ -33,10 +35,10 @@ defmodule Broadcaster.PeerSupervisor do
     DynamicSupervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @spec start_whip(String.t()) :: {:ok, pid(), String.t()} | {:error, term()}
+  @spec start_whip(String.t()) :: {:ok, pid(), String.t(), String.t()} | {:error, term()}
   def start_whip(offer_sdp), do: start_pc(offer_sdp, :recvonly)
 
-  @spec start_whep(String.t()) :: {:ok, pid(), String.t()} | {:error, term()}
+  @spec start_whep(String.t()) :: {:ok, pid(), String.t(), String.t()} | {:error, term()}
   def start_whep(offer_sdp), do: start_pc(offer_sdp, :sendonly)
 
   @spec fetch_pid(String.t()) :: {:ok, pid()} | :error

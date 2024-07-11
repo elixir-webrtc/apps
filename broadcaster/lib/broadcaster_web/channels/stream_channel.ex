@@ -1,4 +1,6 @@
 defmodule BroadcasterWeb.StreamChannel do
+  @moduledoc false
+
   use BroadcasterWeb, :channel
 
   alias BroadcasterWeb.Presence

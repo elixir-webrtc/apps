@@ -1,0 +1,20 @@
+name: CI
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  build_check_recognizer:
+    name: Recognizer CI
+    uses: ./.github/workflows/build-check-app.yml
+    with:
+      workdir: recognizer
+      with-ffmpeg: true
+
+  build_check_broadcaster:
+    name: Broadcaster CI
+    uses: ./.github/workflows/build-check-app.yml
+    with:
+      workdir: broadcaster

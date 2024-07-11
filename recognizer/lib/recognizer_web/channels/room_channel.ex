@@ -1,4 +1,6 @@
 defmodule RecognizerWeb.RoomChannel do
+  @moduledoc false
+
   use Phoenix.Channel, restart: :temporary
 
   require Logger
