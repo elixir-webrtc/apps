@@ -1,0 +1,39 @@
+<div id="room" phx-hook="Room">
+  <video id="videoPlayer" class="w-full rounded-xl" autoplay muted controls></video>
+
+  <div class="flex flex-row gap-6">
+    <div class="mt-4 w-1/2">
+      <h5>Remaining time</h5>
+      <div
+        id="time"
+        class="overflow-hidden mt-1 py-2 w-full h-12 rounded-xl border-solid border-2 border-grey-400"
+      >
+      </div>
+    </div>
+
+    <div class="mt-4 w-1/2">
+      <h5>Score</h5>
+      <div
+        id="imgscore"
+        class="overflow-hidden mt-1 py-2 w-full h-12 rounded-xl border-solid border-2 border-grey-400"
+      >
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <h5>Prediction</h5>
+    <div
+      id="imgpred"
+      class="overflow-hidden mt-1 py-2 w-full h-12 rounded-xl border-solid border-2 border-grey-400"
+    >
+    </div>
+  </div>
+
+  <button
+    id="leaveButton"
+    class="mt-4 py-2 w-full rounded-xl text-gray-200 bg-pink-600 hover:bg-pink-700 focus:bg-pink-700"
+  >
+    Leave
+  </button>
+</div>

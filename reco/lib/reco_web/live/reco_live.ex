@@ -1,12 +1,14 @@
 defmodule RecoWeb.RecoLive do
-  use RecoWeb, :live_view
+  use Phoenix.LiveView,
+    container: {:div, class: "contents"},
+    layout: {RecoWeb.Layouts, :app}
 
   def render(assigns) do
     ~H"""
     <button
       id="button"
       phx-click="start"
-      class="mt-4 py-2 h-12 w-full text-xl rounded-xl text-gray-200 bg-violet-600 hover:bg-violet-700 focus:bg-violet-700"
+      class="mt-4 py-2 h-12 w-full text-xl rounded-xl text-gray-200 bg-brand/90 hover:bg-brand/100 focus:bg-violet-700"
     >
       Start
     </button>
@@ -18,6 +20,6 @@ defmodule RecoWeb.RecoLive do
   end
 
   def handle_event("start", _params, socket) do
-    {:noreply, push_navigate(socket, to: "/reco/lobby")}
+    {:noreply, push_navigate(socket, to: "/lobby")}
   end
 end

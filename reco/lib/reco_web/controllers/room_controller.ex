@@ -1,4 +1,4 @@
-defmodule RecoWeb.RecoController do
+defmodule RecoWeb.RoomController do
   use RecoWeb, :controller
 
   def room(conn, _params) do

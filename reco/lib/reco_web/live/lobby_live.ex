@@ -1,5 +1,7 @@
 defmodule RecoWeb.LobbyLive do
-  use RecoWeb, :live_view
+  use Phoenix.LiveView,
+    container: {:div, class: "contents"},
+    layout: {RecoWeb.Layouts, :app}
 
   alias Reco.Lobby
 
@@ -11,8 +13,8 @@ defmodule RecoWeb.LobbyLive do
     <section>
       <div>
         <p class="text-justify text-xl font-semibold text-black-400">
-          Whoops! Looks like our servers are experiencing pretty high load!
-          We put you in the queue and will redirect you once it's your turn. <br />
+          Whoops! <br /><br /> Looks like our servers are experiencing pretty high load!
+          We put you in the queue and will redirect you once it's your turn. <br /><br />
           You are <%= @position %> in the queue.
           ETA: <%= @eta %> seconds.
         </p>
@@ -24,7 +26,7 @@ defmodule RecoWeb.LobbyLive do
   def mount(_params, _session, socket) do
     case Lobby.get_room() do
       {:ok, room_id} ->
-        {:ok, push_navigate(socket, to: "/reco/room/#{room_id}")}
+        {:ok, push_navigate(socket, to: "/room/#{room_id}")}
 
       {:error, :max_rooms, position} ->
         Process.send_after(self(), :update_eta, @eta_update_interval_ms)
@@ -42,7 +44,7 @@ defmodule RecoWeb.LobbyLive do
   end
 
   def handle_info({:room, room_id}, socket) do
-    {:noreply, push_navigate(socket, to: "/reco/room/#{room_id}")}
+    {:noreply, push_navigate(socket, to: "/room/#{room_id}")}
   end
 
   def handle_info(:update_eta, socket) do

@@ -1,23 +1,31 @@
 <header class="px-4 sm:px-6 lg:px-8">
-  <div class="flex items-center justify-center border-b border-zinc-100 py-4 text-sm">
+  <div class="flex flex-col lg:flex-row items-center justify-between border-b border-brand/15 py-3 text-sm">
     <div class="flex items-center gap-4">
-      <a href="https://github.com/elixir-webrtc/ex_webrtc">
-        <img src={~p"/images/logo.svg"} width="36" />
+      <a href="/">
+        <img src={~p"/images/logo.svg"} width="225" />
       </a>
     </div>
-    <div class="flex items-center content-center gap-4 font-semibold leading-6 text-zinc-900">
-      <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-zinc-700">
-        GitHub
-      </a>
-      <a href="https://hexdocs.pm/ex_webrtc/" class="hover:text-zinc-700">
-        Documentation
-      </a>
+    <div class="flex">
+      <div class="flex items-center gap-4 font-semibold leading-6 text-brand/80">
+        <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-brand">
+          GitHub
+        </a>
+        <a
+          href="https://hexdocs.pm/ex_webrtc/readme.html"
+          class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20"
+        >
+          Docs <span aria-hidden="true">&rarr;</span>
+        </a>
+      </div>
     </div>
   </div>
 </header>
-<main class="p-72 px-4 py-8 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-2xl">
+<main class="flex flex-1 justify-center overflow-scroll">
+  <div class="h-full py-7 px-7 w-[800px]">
     <.flash_group flash={@flash} />
     <%= @inner_content %>
   </div>
 </main>
+<footer class="flex flex-row px-4 py-2 lg:justify-start justify-center font-semibold text-brand/80">
+  <%= Reco.Application.version() %>
+</footer>

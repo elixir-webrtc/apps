@@ -16,8 +16,9 @@ let socket;
 let channel;
 let pc;
 
-async function run() {
-  console.log("Starting");
+async function connect() {
+  console.log("Connecting");
+  button.onclick = disconnect;
 
   localStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
@@ -34,13 +35,13 @@ async function run() {
   socket.connect();
 
   channel = socket.channel("room:" + roomId, {});
-  channel.onClose(_ => { window.location.href = "/reco" });
+  channel.onClose(_ => { window.location.href = "/" });
 
   channel.join()
     .receive("ok", resp => { console.log("Joined successfully", resp) })
     .receive("error", resp => {
       console.log("Unable to join", resp);
-      window.location.href = "/reco";
+      window.location.href = "/";
     })
 
   channel.on("signaling", msg => {
@@ -56,7 +57,7 @@ async function run() {
   channel.on("imgReco", msg => {
     const pred = msg['predictions'][0];
     imgpred.innerText = pred['label'];
-    imgscore.innerText = pred['score'];
+    imgscore.innerText = pred['score'].toFixed(3);
   })
 
   channel.on("sessionTime", msg => {
@@ -75,8 +76,8 @@ async function run() {
   channel.push("signaling", JSON.stringify(offer));
 }
 
-button.onclick = () => {
-  console.log("Leaving");
+function disconnect() {
+  console.log("Disconnecting");
   localStream.getTracks().forEach(track => track.stop());
   videoPlayer.srcObject = null;
 
@@ -93,4 +94,8 @@ button.onclick = () => {
   }
 }
 
-run();
+export const Room = {
+  mounted() {
+    connect();
+  }
+}
