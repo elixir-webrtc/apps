@@ -53,7 +53,7 @@ defmodule BroadcasterWeb.MediaController do
       :ok = PeerConnection.add_ice_candidate(pid, candidate)
       resp(conn, 204, "")
     else
-      {:error, _} -> resp(conn, 400, "Bad request")
+      _other -> resp(conn, 400, "Bad request")
     end
     |> send_resp()
   end
@@ -81,7 +81,7 @@ defmodule BroadcasterWeb.MediaController do
         |> send_chunked(200)
         |> update_layers()
 
-      {:error, _} ->
+      _other ->
         send_resp(conn, 400, "Bad request")
     end
   end
@@ -103,7 +103,7 @@ defmodule BroadcasterWeb.MediaController do
         PeerSupervisor.terminate_pc(pid)
         resp(conn, 200, "")
 
-      {:error, _} ->
+      _other ->
         resp(conn, 400, "Bad request")
     end
     |> send_resp()

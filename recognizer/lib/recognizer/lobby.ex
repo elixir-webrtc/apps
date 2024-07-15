@@ -1,4 +1,6 @@
 defmodule Recognizer.Lobby do
+  @moduledoc false
+
   use GenServer
 
   require Logger

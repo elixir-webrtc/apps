@@ -9,7 +9,13 @@ defmodule Recognizer.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+
+      # dialyzer
+      dialyzer: [
+        plt_local_path: "_dialyzer",
+        plt_core_path: "_dialyzer"
+      ]
     ]
   end
 
@@ -50,7 +56,11 @@ defmodule Recognizer.MixProject do
       {:ex_webrtc_dashboard, "~> 0.3.0"},
       {:xav, "~> 0.3.0"},
       {:bumblebee, "~> 0.4.2"},
-      {:exla, "~> 0.5"}
+      {:exla, "~> 0.5"},
+
+      # Dialyzer and credo
+      {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
+      {:credo, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 

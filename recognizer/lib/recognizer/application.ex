@@ -35,7 +35,10 @@ defmodule Recognizer.Application do
       {Registry, keys: :unique, name: Recognizer.RoomRegistry},
       {DynamicSupervisor, name: Recognizer.RoomSupervisor, strategy: :one_for_one},
       {Nx.Serving,
-       serving: create_video_serving(), name: Recognizer.VideoServing, batch_size: 4, batch_timeout: 100},
+       serving: create_video_serving(),
+       name: Recognizer.VideoServing,
+       batch_size: 4,
+       batch_timeout: 100},
       {Lobby, @max_rooms}
     ]
 

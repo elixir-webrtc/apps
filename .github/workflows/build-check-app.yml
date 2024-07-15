@@ -1,0 +1,96 @@
+name: Build and check app
+
+on:
+  workflow_call:
+    inputs:
+      workdir:
+        required: true
+        type: string
+      with-ffmpeg:
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2024-06-30-12-49/ffmpeg-n7.0.1-11-g40ddddca45-linux64-gpl-shared-7.0.tar.xz
+
+jobs:
+  build_check_app:
+    runs-on: ubuntu-latest
+    name: CI on OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }} in directory ${{ inputs.workdir }}
+    strategy:
+      matrix:
+        otp: ['26']
+        elixir: ['1.16']
+    defaults:
+      run:
+        working-directory: ${{ inputs.workdir }}
+    steps:
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{ matrix.otp }}
+        elixir-version: ${{ matrix.elixir }}
+
+    - name: Install FFmpeg development libraries
+      if: ${{ inputs.with-ffmpeg }}
+      working-directory: .
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget tar
+        wget ${{ env.FFMPEG_URL }} -O - | tar xJ
+        sudo mv ffmpeg-* /opt/ffmpeg
+        echo "C_INCLUDE_PATH=/opt/ffmpeg/include" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=/opt/ffmpeg/lib" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=/opt/ffmpeg/lib" >> $GITHUB_ENV
+
+    - name: Checkout the code
+      uses: actions/checkout@v4
+      with:
+        sparse-checkout: ${{ inputs.workdir }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.workdir }}/deps
+        key: ${{ inputs.workdir }}-${{ runner.os }}-mix-deps-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ inputs.workdir }}-${{ runner.os }}-mix-deps-
+
+    - name: Cache compiled build
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.workdir }}/_build
+        key: ${{ inputs.workdir }}-${{ runner.os }}-mix-build-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ inputs.workdir }}-${{ runner.os }}-mix-build-
+          ${{ inputs.workdir }}-${{ runner.os }}-mix-
+
+    - name: Cache dialyzer artifacts
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.workdir }}/_dialyzer
+        key: ${{ inputs.workdir }}-${{ runner.os }}-dialyzer-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ inputs.workdir }}-${{ runner.os }}-dialyzer-
+
+    - name: Install and setup dependencies
+      run: mix setup
+
+    - name: Compile without warnings
+      id: compile
+      run: mix compile --warnings-as-errors
+
+    - name: Check formatting
+      if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+      run: mix format --check-formatted
+
+    - name: Check with credo
+      if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+      run: mix credo
+
+    - name: Check with dialyzer
+      if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+      run: mix dialyzer
