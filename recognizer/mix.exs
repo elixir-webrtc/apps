@@ -54,9 +54,9 @@ defmodule Recognizer.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:ex_webrtc, "~> 0.3.0"},
       {:ex_webrtc_dashboard, "~> 0.3.0"},
-      {:xav, "~> 0.3.0"},
-      {:bumblebee, "~> 0.4.2"},
-      {:exla, "~> 0.5"},
+      {:xav, "~> 0.4.0"},
+      {:bumblebee, "~> 0.5.3"},
+      {:exla, "~> 0.7.1"},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

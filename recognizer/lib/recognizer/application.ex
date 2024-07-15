@@ -16,9 +16,13 @@ defmodule Recognizer.Application do
   end
 
   defp commit() do
-    case System.cmd("git", ["rev-parse", "--short", "HEAD"]) do
-      {hash, 0} -> "(#{String.trim(hash)})"
-      _ -> ""
+    try do
+      case System.cmd("git", ["rev-parse", "--short", "HEAD"]) do
+        {hash, 0} -> "(#{String.trim(hash)})"
+        _ -> ""
+      end
+    catch
+      _, _ -> ""
     end
   end
 

@@ -55,6 +55,8 @@ config :nx, default_backend: EXLA.Backend
 
 config :recognizer, max_rooms: 5, max_session_time_s: 200
 
+config :bundlex, :disable_precompiled_os_deps, apps: [:ex_libsrtp]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
