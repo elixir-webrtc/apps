@@ -52,13 +52,7 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-config :mime, :types, %{
-  "application/sdp" => ["sdp"],
-  "application/" => ["trickle-ice-sdpfrag"]
-}
-
 config :nexus,
-  whip_token: "example",
   admin_username: "admin",
   admin_password: "admin"
 

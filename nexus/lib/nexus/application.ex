@@ -31,7 +31,7 @@ defmodule Nexus.Application do
       NexusWeb.Endpoint,
       NexusWeb.Presence,
       Nexus.PeerSupervisor,
-      Nexus.Chamber,
+      Nexus.Room,
       {Registry, name: Nexus.PeerRegistry, keys: :unique},
       {Registry, name: Nexus.ChatNicknamesRegistry, keys: :unique}
     ]

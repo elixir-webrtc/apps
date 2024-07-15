@@ -5,9 +5,45 @@ defmodule Nexus.Peer do
 
   require Logger
 
-  alias ExWebRTC.{ICECandidate, MediaStreamTrack, PeerConnection, RTPCodecParameters}
-  alias Nexus.Chamber
+  alias ExWebRTC.{
+    ICECandidate,
+    MediaStreamTrack,
+    PeerConnection,
+    RTPCodecParameters,
+    SessionDescription
+  }
+
+  alias Nexus.Room
   alias Nexus.Peer.State
+  alias NexusWeb.PeerChannel
+
+  defmodule State do
+    @moduledoc false
+
+    use Bunch.Access
+
+    @type stream_spec :: %{stream: String.t(), video: String.t() | nil, audio: String.t() | nil}
+
+    @type t :: %__MODULE__{
+            id: String.t(),
+            channel: pid(),
+            pc: pid(),
+            inbound_tracks: %{video: String.t() | nil, audio: String.t() | nil},
+            outbound_tracks: %{(id :: String.t()) => stream_spec()},
+            peer_tracks: %{(id :: String.t()) => stream_spec()},
+            notification_queue: [term()]
+          }
+
+    @enforce_keys [:id, :channel, :pc]
+
+    defstruct @enforce_keys ++
+                [
+                  inbound_tracks: %{video: nil, audio: nil},
+                  outbound_tracks: %{},
+                  peer_tracks: %{},
+                  notification_queue: []
+                ]
+  end
 
   @audio_codecs [
     %RTPCodecParameters{
@@ -65,7 +101,7 @@ defmodule Nexus.Peer do
   @impl true
   def init([id, channel, peer_ids]) do
     Logger.debug("Starting new peer #{id}")
-    {:ok, pc} = PeerConnection.start_link(@opts ++ [controlling_process: self()])
+    {:ok, pc} = PeerConnection.start_link(@opts)
     Process.monitor(pc)
     Logger.debug("Starting peer connection #{inspect(pc)}")
 
@@ -84,21 +120,20 @@ defmodule Nexus.Peer do
 
     outbound_tracks = setup_transceivers(pc, peer_ids)
 
-    state = State.send_offer(state)
+    state = send_offer(state)
 
     {:noreply, %{state | outbound_tracks: outbound_tracks}}
   end
 
   @impl true
-  def handle_call({:apply_sdp_answer, answer_sdp}, _from, state) do
+  def handle_call({:apply_sdp_answer, answer_sdp}, _from, %{pc: pc} = state) do
     state =
-      if State.offer_pending?(state) do
+      if PeerConnection.get_signaling_state(pc) == :have_local_offer do
         state
-        |> State.apply_answer(answer_sdp)
-        |> State.flush_candidates()
-        |> State.send_notifications()
+        |> apply_answer(answer_sdp)
+        |> send_notifications()
       else
-        Logger.debug("Ignoring SDP answer for #{state.id}: no pending offer")
+        Logger.warning("Ignoring SDP answer for #{state.id}: no pending offer")
         state
       end
 
@@ -107,13 +142,12 @@ defmodule Nexus.Peer do
 
   @impl true
   def handle_call({:add_ice_candidate, body}, _from, state) do
-    # TODO: this is not implemented as the RFC requires
     candidate =
       body
       |> Jason.decode!()
       |> ICECandidate.from_json()
 
-    state = State.add_candidate(state, candidate)
+    :ok = PeerConnection.add_ice_candidate(state.pc, candidate)
 
     {:reply, :ok, state}
   end
@@ -130,10 +164,10 @@ defmodule Nexus.Peer do
   end
 
   @impl true
-  def handle_cast({:notification, {:forward, peer, obt}}, state) do
-    Logger.debug("Peer #{state.id} forwarding tracks to peer #{peer}")
+  def handle_cast({:notification, {:subscribe, peer, tracks}}, state) do
+    Logger.debug("Peer #{state.id} received subscribe request from peer #{peer}")
 
-    {:noreply, put_in(state, [:peer_tracks, peer], obt)}
+    {:noreply, put_in(state, [:peer_tracks, peer], tracks)}
   end
 
   @impl true
@@ -144,8 +178,8 @@ defmodule Nexus.Peer do
 
     state =
       state
-      |> State.send_offer()
-      |> State.enqueue_notification(peer, {:forward, state.id, Map.put(tracks, :pc, pc)})
+      |> send_offer()
+      |> enqueue_notification(peer, {:subscribe, state.id, Map.put(tracks, :pc, pc)})
       |> put_in([:outbound_tracks, peer], tracks)
 
     {:noreply, state}
@@ -157,10 +191,10 @@ defmodule Nexus.Peer do
     {_, state} = pop_in(state, [:peer_tracks, peer])
     {spec, state} = pop_in(state, [:outbound_tracks, peer])
 
-    :ok = PeerConnection.stop_transceiver(pc, spec.xcvrs.video)
-    :ok = PeerConnection.stop_transceiver(pc, spec.xcvrs.audio)
+    :ok = PeerConnection.stop_transceiver(pc, spec.transceivers.video)
+    :ok = PeerConnection.stop_transceiver(pc, spec.transceivers.audio)
 
-    state = State.send_offer(state)
+    state = send_offer(state)
 
     {:noreply, state}
   end
@@ -172,7 +206,7 @@ defmodule Nexus.Peer do
       |> ICECandidate.to_json()
       |> Jason.encode!()
 
-    :ok = NexusWeb.PeerChannel.send_candidate(state.channel, body)
+    :ok = PeerChannel.send_candidate(state.channel, body)
 
     {:noreply, state}
   end
@@ -181,9 +215,9 @@ defmodule Nexus.Peer do
   def handle_info({:ex_webrtc, pc, {:connection_state_change, :connected}}, %{pc: pc} = state) do
     Logger.debug("Peer #{state.id} connected")
 
-    case Chamber.mark_ready(state.id, pc, state.outbound_tracks) do
+    case Room.mark_ready(state.id, pc, state.outbound_tracks) do
       :ok ->
-        state = State.send_notifications(state)
+        state = send_notifications(state)
         {:noreply, state}
 
       {:peer_mismatch, _peer_ids} ->
@@ -205,7 +239,7 @@ defmodule Nexus.Peer do
   @impl true
   def handle_info({:ex_webrtc, pc, {:rtcp, packets}}, %{pc: pc} = state) do
     Enum.each(packets, fn
-      %ExRTCP.Packet.PayloadFeedback.PLI{} -> Chamber.broadcast_pli()
+      %ExRTCP.Packet.PayloadFeedback.PLI{} -> Room.broadcast_pli()
       _other -> :noop
     end)
 
@@ -227,7 +261,7 @@ defmodule Nexus.Peer do
       "Peer #{state.id} shutting down: peer connection process #{inspect(pc)} terminated with reason #{inspect(reason)}"
     )
 
-    {:stop, :shutdown, state}
+    {:stop, {:shutdown, :peer_connection_closed}, state}
   end
 
   @impl true
@@ -238,8 +272,8 @@ defmodule Nexus.Peer do
 
   defp setup_transceivers(pc, peer_ids) do
     # Inbound tracks
-    {:ok, _xcvr} = PeerConnection.add_transceiver(pc, :video, direction: :recvonly)
-    {:ok, _xcvr} = PeerConnection.add_transceiver(pc, :audio, direction: :recvonly)
+    {:ok, _tr} = PeerConnection.add_transceiver(pc, :video, direction: :recvonly)
+    {:ok, _tr} = PeerConnection.add_transceiver(pc, :audio, direction: :recvonly)
 
     # Outbound tracks
     Map.new(peer_ids, fn id ->
@@ -252,15 +286,46 @@ defmodule Nexus.Peer do
     vt = MediaStreamTrack.new(:video, [stream_id])
     at = MediaStreamTrack.new(:audio, [stream_id])
 
-    {:ok, video_xcvr} = PeerConnection.add_transceiver(pc, :video, direction: :sendonly)
-    :ok = PeerConnection.replace_track(pc, video_xcvr.sender.id, vt)
+    {:ok, video_tr} = PeerConnection.add_transceiver(pc, :video, direction: :sendonly)
+    :ok = PeerConnection.replace_track(pc, video_tr.sender.id, vt)
 
-    {:ok, audio_xcvr} = PeerConnection.add_transceiver(pc, :audio, direction: :sendonly)
-    :ok = PeerConnection.replace_track(pc, audio_xcvr.sender.id, at)
+    {:ok, audio_tr} = PeerConnection.add_transceiver(pc, :audio, direction: :sendonly)
+    :ok = PeerConnection.replace_track(pc, audio_tr.sender.id, at)
 
-    xcvrs = %{video: video_xcvr.id, audio: audio_xcvr.id}
+    transceivers = %{video: video_tr.id, audio: audio_tr.id}
 
-    %{stream: stream_id, video: vt.id, audio: at.id, xcvrs: xcvrs}
+    %{stream: stream_id, video: vt.id, audio: at.id, transceivers: transceivers}
+  end
+
+  defp enqueue_notification(state, dest, notification) do
+    Map.update!(state, :notification_queue, &[{dest, notification} | &1])
+  end
+
+  defp send_notifications(state) do
+    state.notification_queue
+    |> Enum.reverse()
+    |> Enum.each(fn {dest, notification} -> notify(dest, notification) end)
+
+    %{state | notification_queue: []}
+  end
+
+  defp send_offer(%{pc: pc} = state) do
+    {:ok, offer} = PeerConnection.create_offer(pc)
+    Logger.debug("Sending SDP offer for #{state.id}:\n#{offer.sdp}")
+
+    :ok = PeerConnection.set_local_description(pc, offer)
+    :ok = PeerChannel.send_offer(state.channel, offer.sdp)
+
+    state
+  end
+
+  defp apply_answer(state, answer_sdp) do
+    answer = %SessionDescription{type: :answer, sdp: answer_sdp}
+    Logger.debug("Applying SDP answer for #{state.id}:\n#{answer.sdp}")
+
+    :ok = PeerConnection.set_remote_description(state.pc, answer)
+
+    state
   end
 
   defp broadcast_packet(peer_tracks, track_kind, packet) do

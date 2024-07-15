@@ -50,8 +50,6 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
-  whip_token = System.get_env("WHIP_TOKEN") || raise "Environment variable WHIP_TOKEN is missing."
-
   admin_username =
     System.get_env("ADMIN_USERNAME") || raise "Environment variable ADMIN_USERNAME is missing."
 
@@ -59,7 +57,6 @@ if config_env() == :prod do
     System.get_env("ADMIN_PASSWORD") || raise "Environment variable ADMIN_PASSWORD is missing."
 
   config :nexus,
-    whip_token: whip_token,
     admin_username: admin_username,
     admin_password: admin_password
 

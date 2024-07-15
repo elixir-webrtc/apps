@@ -1,4 +1,4 @@
-defmodule Nexus.Chamber do
+defmodule Nexus.Room do
   @moduledoc false
 
   use GenServer
@@ -76,7 +76,7 @@ defmodule Nexus.Chamber do
       peer_track_specs
       |> Enum.each(fn {peer, track_specs} ->
         Peer.notify(peer, {:peer_added, id})
-        Peer.notify(peer, {:forward, id, Map.put(track_specs, :pc, pc)})
+        Peer.notify(peer, {:subscribe, id, Map.put(track_specs, :pc, pc)})
       end)
 
       {peer_data, state} = pop_in(state, [:pending_peers, id])

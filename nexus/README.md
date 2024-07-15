@@ -9,7 +9,7 @@ Clone this repo and change the working directory to `apps/nexus`.
 Fetch dependencies and run the app:
 
 ```shell
-mix deps.get
+mix setup
 mix phx.server
 ```
 

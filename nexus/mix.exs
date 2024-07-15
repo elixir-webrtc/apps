@@ -9,7 +9,13 @@ defmodule Nexus.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+
+      # dialyzer
+      dialyzer: [
+        plt_local_path: "_dialyzer",
+        plt_core_path: "_dialyzer"
+      ]
     ]
   end
 

@@ -5,7 +5,7 @@ defmodule NexusWeb.PeerChannel do
 
   require Logger
 
-  alias Nexus.{Chamber, Peer}
+  alias Nexus.{Peer, Room}
 
   @spec send_offer(GenServer.server(), String.t()) :: :ok
   def send_offer(channel, offer) do
@@ -31,7 +31,7 @@ defmodule NexusWeb.PeerChannel do
   @impl true
   def join("peer:signalling", _payload, socket) do
     pid = self()
-    {:ok, id} = Chamber.add_peer(pid)
+    {:ok, id} = Room.add_peer(pid)
 
     {:ok, assign(socket, :peer, id)}
   end

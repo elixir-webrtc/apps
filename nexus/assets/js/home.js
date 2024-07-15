@@ -2,14 +2,13 @@ import { connectChat } from "./chat.js"
 import { Socket } from "phoenix";
 
 const pcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const ownVideoPlayer = document.getElementById("videoplayer-own");
+const localVideoPlayer = document.getElementById("videoplayer-local");
 const videoPlayerWrapper = document.getElementById("videoplayer-wrapper");
 
 let localStream = undefined;
 let channel = undefined;
 let pc = undefined;
 let localTracksAdded = false;
-let candidates = [];
 
 async function createPeerConnection() {
   pc = new RTCPeerConnection(pcConfig);
@@ -41,7 +40,6 @@ async function createPeerConnection() {
   pc.onicecandidate = event => {
     if (event.candidate == null) {
       console.log("Gathering candidates complete");
-      forwardSdpAnswer();
       return;
     }
 
@@ -61,15 +59,10 @@ async function setupLocalMedia() {
 }
 
 function setupPreview() {
-  // flip the preview horizontally
-  ownVideoPlayer.style.cssText = "-moz-transform: scale(-1, 1); \
--webkit-transform: scale(-1, 1); -o-transform: scale(-1, 1); \
-transform: scale(-1, 1); filter: FlipH;";
-
-  ownVideoPlayer.srcObject = localStream;
+  localVideoPlayer.srcObject = localStream;
 }
 
-async function joinChannel(streamPromise) {
+async function joinChannel() {
   const socket = new Socket("/socket");
   socket.connect();
   channel = socket.channel(`peer:signalling`);
@@ -83,62 +76,43 @@ async function joinChannel(streamPromise) {
     window.location.reload();
   });
 
-  channel.on("sdp_offer", payload => {
+  channel.on("sdp_offer", async payload => {
     const sdpOffer = payload.body;
     
     console.log("SDP offer received");
-    streamPromise.then(async (_) => {
-      await applySdpOffer(sdpOffer);
-      if (pc.connectionState == "connected") {
-        forwardSdpAnswer();
-      }
-    });
+
+    await pc.setRemoteDescription({ type: "offer", sdp: sdpOffer });
+
+    if (!localTracksAdded) {
+      console.log("Adding local tracks to peer connection");
+      localStream.getTracks().forEach(track => pc.addTrack(track));
+      localTracksAdded = true;
+    }
+
+    const sdpAnswer = await pc.createAnswer();
+    await pc.setLocalDescription(sdpAnswer);
+
+    console.log("SDP offer applied, forwarding SDP answer");
+    const answer = pc.localDescription;
+    channel.push("sdp_answer", {body: answer.sdp});
   });
 
   channel.on("ice_candidate", payload => {
     const candidate = JSON.parse(payload.body);
     console.log("Received ICE candidate: " + payload.body);
-    if (pc.remoteDescription !== null) {
-      pc.addIceCandidate(candidate);
-    } else {
-      candidates.push(candidate);
-    }
+    pc.addIceCandidate(candidate);
   });
 
   channel.join();
   console.log("Joined channel peer:signalling");
 }
 
-async function applySdpOffer(sdpOffer) {
-  console.log("Applying received SDP offer");
-  await pc.setRemoteDescription({ type: "offer", sdp: sdpOffer });
-
-  candidates.forEach((candidate) => pc.addIceCandidate(candidate));
-  candidates = [];
-
-  if (!localTracksAdded) {
-    console.log("Adding local tracks to peer connection");
-    localStream.getTracks().forEach(track => pc.addTrack(track));
-    localTracksAdded = true;
-  }
-
-  const sdpAnswer = await pc.createAnswer();
-  await pc.setLocalDescription(sdpAnswer);
-  console.log("SDP offer applied");
-}
-
-function forwardSdpAnswer() {
-  console.log("Forwarding SDP answer");
-  const answer = pc.localDescription;
-  channel.push("sdp_answer", {body: answer.sdp});
-}
-
 export const Home = {
   async mounted() {
-    await createPeerConnection();
-    connectChat()
+    connectChat();
 
-    const streamPromise = setupLocalMedia();
-    joinChannel(streamPromise);
+    await createPeerConnection();
+    await setupLocalMedia();
+    joinChannel();
   }
 }
