@@ -1,0 +1,30 @@
+name: Recognizer CD 
+
+on:
+  push:
+    tags:
+      - "recognizer-v*.*.*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs: 
+  build-publish-recognizer-image:
+    name: "Build and publish Recognizer image"
+    uses: ./.github/workflows/__CD__build-publish-image.yml
+    with:
+      app-name: recognizer
+  deploy-recognizer:
+    name: "Deploy Recognizer image"
+    needs: build-publish-recognizer-image
+    uses: ./.github/workflows/__CD__deploy-image.yml
+    with:
+      app-name: recognizer
+    secrets:
+      ssh-host: ${{ secrets.RECOGNIZER_SSH_HOST }}
+      ssh-username: ${{ secrets.RECOGNIZER_SSH_USERNAME }}
+      ssh-priv-key: ${{ secrets.RECOGNIZER_SSH_PRIV_KEY }}
+      secret-key-base: ${{ secrets.RECOGNIZER_SECRET_KEY_BASE }}
+      phx-host: ${{ secrets.RECOGNIZER_PHX_HOST }}
+      ice-port-range: ${{ secrets.RECOGNIZER_ICE_PORT_RANGE }}

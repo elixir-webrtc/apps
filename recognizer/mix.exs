@@ -4,7 +4,7 @@ defmodule Recognizer.MixProject do
   def project do
     [
       app: :recognizer,
-      version: "0.1.0",
+      version: "0.1.0-dev",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -52,7 +52,8 @@ defmodule Recognizer.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
-      {:ex_webrtc, "~> 0.3.0"},
+      # {:ex_webrtc, "~> 0.3.0"},
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", branch: "ice-port-range", override: true},
       {:ex_webrtc_dashboard, "~> 0.3.0"},
       {:xav, "~> 0.4.0"},
       {:bumblebee, "~> 0.5.3"},
