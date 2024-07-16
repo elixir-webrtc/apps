@@ -14,7 +14,6 @@ defmodule Nexus.Peer do
   }
 
   alias Nexus.Room
-  alias Nexus.Peer.State
   alias NexusWeb.PeerChannel
 
   defmodule State do
@@ -127,14 +126,17 @@ defmodule Nexus.Peer do
 
   @impl true
   def handle_call({:apply_sdp_answer, answer_sdp}, _from, %{pc: pc} = state) do
+    answer = %SessionDescription{type: :answer, sdp: answer_sdp}
+    Logger.debug("Applying SDP answer for #{state.id}:\n#{answer.sdp}")
+
     state =
-      if PeerConnection.get_signaling_state(pc) == :have_local_offer do
-        state
-        |> apply_answer(answer_sdp)
-        |> send_notifications()
-      else
-        Logger.warning("Ignoring SDP answer for #{state.id}: no pending offer")
-        state
+      case PeerConnection.set_remote_description(pc, answer) do
+        :ok ->
+          send_notifications(state)
+
+        {:error, reason} ->
+          Logger.warning("Unable to apply SDP answer for #{state.id}: #{inspect(reason)}")
+          state
       end
 
     {:reply, :ok, state}
@@ -315,15 +317,6 @@ defmodule Nexus.Peer do
 
     :ok = PeerConnection.set_local_description(pc, offer)
     :ok = PeerChannel.send_offer(state.channel, offer.sdp)
-
-    state
-  end
-
-  defp apply_answer(state, answer_sdp) do
-    answer = %SessionDescription{type: :answer, sdp: answer_sdp}
-    Logger.debug("Applying SDP answer for #{state.id}:\n#{answer.sdp}")
-
-    :ok = PeerConnection.set_remote_description(state.pc, answer)
 
     state
   end
