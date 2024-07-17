@@ -1,38 +1,43 @@
-import { Socket, Presence } from "phoenix"
+import { Socket, Presence } from 'phoenix';
 
 export async function connectChat() {
-  const viewercount = document.getElementById("viewercount");
-  const chatMessages = document.getElementById("chat-messages");
-  const chatInput = document.getElementById("chat-input");
-  const chatNickname = document.getElementById("chat-nickname");
-  const chatButton = document.getElementById("chat-button");
+  const viewercount = document.getElementById('viewercount');
+  const chatMessages = document.getElementById('chat-messages');
+  const chatInput = document.getElementById('chat-input');
+  const chatNickname = document.getElementById('chat-nickname');
+  const chatButton = document.getElementById('chat-button');
 
-  let socket = new Socket("/socket", { params: { token: window.userToken } });
+  let socket = new Socket('/socket', { params: { token: window.userToken } });
 
   socket.connect();
 
-  const channel = socket.channel("stream:chat");
+  const channel = socket.channel('stream:chat');
   const presence = new Presence(channel);
 
-  send = function() {
-    body = chatInput.value.trim();
-    if (body != "") {
-      channel.push("chat_msg", { body: body });
-      chatInput.value = "";
+  const send = function () {
+    const body = chatInput.value.trim();
+    if (body != '') {
+      channel.push('chat_msg', { body: body });
+      chatInput.value = '';
     }
-  }
+  };
 
   presence.onSync(() => {
     viewercount.innerText = presence.list().length;
   });
 
-  channel.join()
-    .receive("ok", resp => { console.log("Joined chat channel successfully", resp) })
-    .receive("error", resp => { console.log("Unable to join chat channel", resp) });
+  channel
+    .join()
+    .receive('ok', (resp) => {
+      console.log('Joined chat channel successfully', resp);
+    })
+    .receive('error', (resp) => {
+      console.log('Unable to join chat channel', resp);
+    });
 
-  channel.on("join_chat_resp", resp => {
+  channel.on('join_chat_resp', (resp) => {
     if (resp.result === 'success') {
-      chatButton.innerText = "Send";
+      chatButton.innerText = 'Send';
       chatButton.onclick = send;
       chatNickname.disabled = true;
       chatInput.disabled = false;
@@ -42,13 +47,13 @@ export async function connectChat() {
           ev.preventDefault();
           send();
         }
-      }
+      };
     } else {
       chatNickname.classList.add('invalid-input');
     }
   });
 
-  channel.on("chat_msg", msg => {
+  channel.on('chat_msg', (msg) => {
     if (msg.nickname == undefined || msg.body == undefined) return;
 
     const chatMessage = document.createElement('div');
@@ -71,15 +76,15 @@ export async function connectChat() {
 
     // allow for 1 scroll history
     if (chatMessages.scrollHeight > 2 * chatMessages.clientHeight) {
-     chatMessages.removeChild(chatMessages.children[0]); 
+      chatMessages.removeChild(chatMessages.children[0]);
     }
-  })
+  });
 
   chatButton.onclick = () => {
-    channel.push("join_chat", { nickname: chatNickname.value });
+    channel.push('join_chat', { nickname: chatNickname.value });
   };
 
   chatNickname.onclick = () => {
-    chatNickname.classList.remove("invalid-input");
-  }
+    chatNickname.classList.remove('invalid-input');
+  };
 }

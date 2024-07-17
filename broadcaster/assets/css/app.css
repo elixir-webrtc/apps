@@ -1,41 +1,41 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
 /* This file is for your main application CSS */
 .invalid-input {
-    border-color: #d52b4d;
+  border-color: #d52b4d;
 }
 
 .chat-message {
-    display: flex;
-    flex-direction: column;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .chat-nickname {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 /* from https://stackoverflow.com/a/38994837/9620900 */
 /* Hiding scrollbar for Chrome, Safari and Opera */
 #chat-messages::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 /* Hiding scrollbar for IE, Edge and Firefox */
 #chat-messages {
-  scrollbar-width: none;  /* Firefox */
-  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
 #chat-input::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 /* Hiding scrollbar for IE, Edge and Firefox */
 #chat-input {
-  scrollbar-width: none;  /* Firefox */
-  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }

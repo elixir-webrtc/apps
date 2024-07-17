@@ -34,6 +34,11 @@ jobs:
         otp-version: ${{ matrix.otp }}
         elixir-version: ${{ matrix.elixir }}
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
     - name: Install FFmpeg development libraries
       if: ${{ inputs.with-ffmpeg }}
       working-directory: .
@@ -94,3 +99,12 @@ jobs:
     - name: Check with dialyzer
       if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
       run: mix dialyzer
+
+    - name: Check assets formatting
+      if: ${{ !cancelled() }}
+      run: |
+        mix assets.format
+        if [[ -n "$(git status --porcelain)" ]]; then
+          echo "Assets formatter introduced changes. Run `mix assets.format` and commit the updated files"
+          exit 1
+        fi
