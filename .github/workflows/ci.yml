@@ -18,3 +18,9 @@ jobs:
     uses: ./.github/workflows/build-check-app.yml
     with:
       workdir: broadcaster
+
+  build_check_nexus:
+    name: Nexus CI
+    uses: ./.github/workflows/build-check-app.yml
+    with:
+      workdir: nexus

@@ -1,0 +1,50 @@
+<header class="px-4 sm:px-6 lg:px-8">
+  <div class="flex flex-col lg:flex-row items-center justify-between border-b border-brand/15 py-3 text-sm">
+    <div class="flex items-center gap-4">
+      <a href="/">
+        <img src={~p"/images/logo.svg"} width="225" />
+      </a>
+    </div>
+    <div class="flex">
+      <div class="flex items-center gap-4 font-semibold leading-6 text-brand/80">
+        <div class="flex gap-1">
+          <p id="viewercount">0</p>
+          <.icon name="hero-user-solid" />
+        </div>
+        <div id="chat-toggler">
+          <.icon name="hero-chat-bubble-bottom-center" />
+        </div>
+        <a href="https://github.com/elixir-webrtc/ex_webrtc" class="hover:text-brand">
+          GitHub
+        </a>
+        <a
+          href="https://hexdocs.pm/ex_webrtc/readme.html"
+          class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20"
+        >
+          Docs <span aria-hidden="true">&rarr;</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+<!--
+flex-1 will make our main element grow as much as its parent allows it to do so.
+However, if one of main's children grows more than main, main will also grow.
+That's because parent cannot be smaller than its content.
+This is enforced by min-h and min-w set to auto by default.
+As a consequence, we will never experience overflow in children elements.
+In particular, overflow-scroll on chat div won't have any effect.
+To change this behaviour, we set min-h-0 to allow our main element to shrink to the size
+smaller than its content. Setting overflow-hidden or overflow-auto has the same effect.
+I put this comment as it took me at least 5 hours to understand what's going on.
+See https://stackoverflow.com/a/36247448/9620900
+-->
+<main class="flex-1 min-h-0">
+  <div class="h-full py-7 px-7">
+    <.flash_group flash={@flash} />
+    <%= @inner_content %>
+  </div>
+</main>
+<footer class="flex flex-row px-4 py-2 lg:justify-start justify-center font-semibold text-brand/80">
+  <%= Nexus.Application.version() %>
+</footer>
