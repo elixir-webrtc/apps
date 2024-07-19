@@ -59,7 +59,14 @@ defmodule Recognizer.Room do
   @impl true
   def handle_call({:connect, channel_pid}, _from, %{channel: nil} = state) do
     Process.monitor(channel_pid)
-    {:ok, pc} = PeerConnection.start_link(video_codecs: @video_codecs)
+
+    ice_port_range = Application.fetch_env!(:recognizer, :ice_port_range)
+
+    {:ok, pc} =
+      PeerConnection.start_link(
+        video_codecs: @video_codecs,
+        ice_port_range: ice_port_range
+      )
 
     state =
       state

@@ -16,9 +16,25 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+
+read_ice_port_range! = fn ->
+  case System.get_env("ICE_PORT_RANGE") do
+    nil ->
+      [0]
+
+    raw_port_range ->
+      case String.split(raw_port_range, "-", parts: 2) do
+        [from, to] -> String.to_integer(from)..String.to_integer(to)
+        _other -> raise "ICE_PORT_RANGE has to be in form of FROM-TO, passed: #{raw_port_range}"
+      end
+  end
+end
+
 if System.get_env("PHX_SERVER") do
   config :recognizer, RecognizerWeb.Endpoint, server: true
 end
+
+config :recognizer, ice_port_range: read_ice_port_range!.()
 
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.

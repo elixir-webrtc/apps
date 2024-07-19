@@ -13,7 +13,7 @@ Now you can visit [`localhost:5002`](http://localhost:5002) from your browser.
 
 You can also run Recognizer using Docker.
 
-Build an image:
+Build an image (or use `ghcr.io/elixir-webrtc/apps/recognizer:latest`):
 
 ```
 docker build -t recognizer .

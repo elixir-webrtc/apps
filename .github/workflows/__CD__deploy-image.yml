@@ -1,0 +1,38 @@
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+    secrets:
+      ssh-host:
+        required: true
+      ssh-username:
+        required: true
+      ssh-priv-key:
+        required: true
+      secret-key-base:
+        required: true
+      phx-host:
+        required: true
+      ice-port-range:
+        required: true
+
+jobs:
+  deploy-image:
+    name: Deploy image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run docker via remote SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ssh-host }}
+          username: ${{ secrets.ssh-username }}
+          key: ${{ secrets.ssh-priv-key }}
+          script: |
+            export TAG=${{ github.ref_name }}
+            export TAG=${TAG#*-v}
+            docker stop ${{ inputs.app-name }}
+            docker rm ${{ inputs.app-name }}
+            docker run -d --restart unless-stopped --name ${{ inputs.app-name }} -e SECRET_KEY_BASE=${{ secrets.secret-key-base }} -e PHX_HOST=${{ secrets.phx-host }} -e ICE_PORT_RANGE=${{ secrets.ice-port-range }} --network host ghcr.io/elixir-webrtc/apps/${{ inputs.app-name }}:${TAG}
+            docker image prune --all --force

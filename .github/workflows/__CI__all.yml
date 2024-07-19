@@ -8,19 +8,19 @@ permissions:
 jobs:
   build_check_recognizer:
     name: Recognizer CI
-    uses: ./.github/workflows/build-check-app.yml
+    uses: ./.github/workflows/__CI__build-check-app.yml
     with:
       workdir: recognizer
       with-ffmpeg: true
 
   build_check_broadcaster:
     name: Broadcaster CI
-    uses: ./.github/workflows/build-check-app.yml
+    uses: ./.github/workflows/__CI__build-check-app.yml
     with:
       workdir: broadcaster
 
   build_check_nexus:
     name: Nexus CI
-    uses: ./.github/workflows/build-check-app.yml
+    uses: ./.github/workflows/__CI__build-check-app.yml
     with:
       workdir: nexus

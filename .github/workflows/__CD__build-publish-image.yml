@@ -1,0 +1,46 @@
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-publish-image:
+    name: "Build and publish image"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: ${{ inputs.app-name }}
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ inputs.app-name }}
+          tags: type=match,pattern=${{ inputs.app-name }}-v(.*),group=1
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./${{ inputs.app-name }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{  steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
