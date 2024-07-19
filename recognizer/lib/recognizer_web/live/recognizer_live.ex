@@ -16,6 +16,7 @@ defmodule RecognizerWeb.RecognizerLive do
   end
 
   def mount(_params, _session, socket) do
+    socket = assign(socket, :page_title, "Home")
     {:ok, socket}
   end
 

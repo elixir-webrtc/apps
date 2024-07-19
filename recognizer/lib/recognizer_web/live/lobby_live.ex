@@ -30,6 +30,7 @@ defmodule RecognizerWeb.LobbyLive do
 
       {:error, :max_rooms, position} ->
         Process.send_after(self(), :update_eta, @eta_update_interval_ms)
+        socket = assign(socket, page_title: "Lobby")
         socket = assign(socket, position: position)
         socket = assign(socket, eta: position * @session_time)
         socket = assign(socket, last_check: System.monotonic_time(:millisecond))
