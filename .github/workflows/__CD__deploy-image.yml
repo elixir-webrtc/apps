@@ -23,11 +23,6 @@ jobs:
     name: Deploy image
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the code
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: ${{ inputs.app-name }}
-
       - name: Run docker via remote SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
