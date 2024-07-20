@@ -1,0 +1,51 @@
+name: Broadcaster CD 
+
+on:
+  push:
+    tags:
+      - "broadcaster-v*.*.*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs: 
+  build-publish-broadcaster-image:
+    name: "Build and publish Broadcaster image"
+    uses: ./.github/workflows/__CD__build-publish-image.yml
+    with:
+      app-name: broadcaster
+  deploy-broadcaster:
+    name: "Deploy Broadcaster image"
+    needs: build-publish-broadcaster-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run docker via remote SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.BROADCASTER_SSH_HOST }}
+          username: ${{ secrets.BROADCASTER_SSH_USERNAME }}
+          key: ${{ secrets.BROADCASTER_SSH_PRIV_KEY }}
+          script: |
+            export APP_NAME=broadcaster
+            export TAG=${{ github.ref_name }}
+            export TAG=${TAG#*-v}
+            docker stop $APP_NAME
+            docker rm $APP_NAME
+            docker run -d --restart unless-stopped \
+              --name $APP_NAME \
+              -e SECRET_KEY_BASE=${{ secrets.BROADCASTER_SECRET_KEY_BASE }} \
+              -e PHX_HOST=${{ secrets.BROADCASTER_PHX_HOST }} \
+              -e ICE_PORT_RANGE=${{ secrets.BROADCASTER_ICE_PORT_RANGE }} \
+              -e ADMIN_USERNAME=${{ secrets.BROADCASTER_ADMIN_USERNAME }} \
+              -e ADMIN_PASSWORD=${{ secrets.BROADCASTER_ADMIN_PASSWORD }} \
+              -e WHIP_TOKEN=${{ secrets.BROADCASTER_WHIP_TOKEN }} \
+              --network host \
+              ghcr.io/elixir-webrtc/apps/$APP_NAME:$TAG
+            docker image prune --all --force
+
+
+
+
+
+

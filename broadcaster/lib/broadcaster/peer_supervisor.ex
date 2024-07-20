@@ -102,8 +102,9 @@ defmodule Broadcaster.PeerSupervisor do
   end
 
   defp spawn_peer_connection(id) do
+    ice_port_range = Application.fetch_env!(:broadcaster, :ice_port_range)
     gen_server_opts = [name: {:via, Registry, {Broadcaster.PeerRegistry, id}}]
-    pc_opts = Keyword.put(@opts, :controlling_process, self())
+    pc_opts = @opts ++ [controlling_process: self(), ice_port_range: ice_port_range]
 
     child_spec = %{
       id: PeerConnection,
