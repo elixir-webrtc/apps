@@ -170,7 +170,7 @@ async function run() {
   closeStream();
 
   // setup preview
-  setupStream();
+  await setupStream();
 
   // bind buttons
   bindControls();

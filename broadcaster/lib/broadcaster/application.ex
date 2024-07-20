@@ -8,16 +8,7 @@ defmodule Broadcaster.Application do
   @version Mix.Project.config()[:version]
 
   @spec version() :: String.t()
-  def version() do
-    "v#{@version} #{commit()}"
-  end
-
-  defp commit() do
-    case System.cmd("git", ["rev-parse", "--short", "HEAD"]) do
-      {hash, 0} -> "(#{String.trim(hash)})"
-      _ -> ""
-    end
-  end
+  def version(), do: @version
 
   @impl true
   def start(_type, _args) do
