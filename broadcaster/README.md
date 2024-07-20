@@ -27,7 +27,7 @@ Now you can visit [`localhost:4000`](http://localhost:4000) from your browser. Y
 
 You can also run Broadcaster using Docker.
 
-Build an image:
+Build an image (or use `ghcr.io/elixir-webrtc/apps/broadcaster:latest`):
 
 ```
 docker build -t broadcaster .
