@@ -66,6 +66,16 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  admin_username =
+    System.get_env("ADMIN_USERNAME") || raise "Environment variable ADMIN_USERNAME is missing."
+
+  admin_password =
+    System.get_env("ADMIN_PASSWORD") || raise "Environment variable ADMIN_PASSWORD is missing."
+
+  config :recognizer,
+    admin_username: admin_username,
+    admin_password: admin_password
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

@@ -1,6 +1,8 @@
 defmodule RecognizerWeb.Router do
   use RecognizerWeb, :router
 
+  import Phoenix.LiveDashboard.Router
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -10,8 +12,8 @@ defmodule RecognizerWeb.Router do
     plug :put_secure_browser_headers
   end
 
-  pipeline :api do
-    plug :accepts, ["json"]
+  pipeline :auth do
+    plug :admin_auth
   end
 
   scope "/", RecognizerWeb do
@@ -22,26 +24,18 @@ defmodule RecognizerWeb.Router do
     get "/room/:room_id", RoomController, :room
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", RecognizerWeb do
-  #   pipe_through :api
-  # end
+  scope "/admin", RecognizerWeb do
+    pipe_through :auth
+    pipe_through :browser
 
-  # Enable LiveDashboard in development
-  if Application.compile_env(:recognizer, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
-    import Phoenix.LiveDashboard.Router
+    live_dashboard "/dashboard",
+      metrics: RecognizerWeb.Telemetry,
+      additional_pages: [exwebrtc: ExWebRTCDashboard]
+  end
 
-    scope "/dev" do
-      pipe_through :browser
-
-      live_dashboard "/dashboard",
-        metrics: RecognizerWeb.Telemetry,
-        additional_pages: [route_name: ExWebRTCDashboard]
-    end
+  defp admin_auth(conn, _opts) do
+    username = Application.fetch_env!(:recognizer, :admin_username)
+    password = Application.fetch_env!(:recognizer, :admin_password)
+    Plug.BasicAuth.basic_auth(conn, username: username, password: password)
   end
 end

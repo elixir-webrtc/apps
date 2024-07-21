@@ -100,7 +100,9 @@ defmodule Nexus.Peer do
   @impl true
   def init([id, channel, peer_ids]) do
     Logger.debug("Starting new peer #{id}")
-    {:ok, pc} = PeerConnection.start_link(@opts)
+    ice_port_range = Application.fetch_env!(:nexus, :ice_port_range)
+    pc_opts = @opts ++ [ice_port_range: ice_port_range]
+    {:ok, pc} = PeerConnection.start_link(pc_opts)
     Process.monitor(pc)
     Logger.debug("Starting peer connection #{inspect(pc)}")
 
