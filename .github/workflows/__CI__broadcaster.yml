@@ -1,0 +1,18 @@
+name: Broadcaster CI
+
+on: 
+  push:
+    paths:
+      - 'broadcaster/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build_check_broadcaster:
+    name: Build and check Broadcaster
+    uses: ./.github/workflows/__CI__build-check-app.yml
+    with:
+      workdir: broadcaster
+

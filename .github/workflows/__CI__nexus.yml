@@ -1,0 +1,17 @@
+name: Nexus CI
+
+on: 
+  push:
+    paths:
+      - 'nexus/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build_check_nexus:
+    name: Build and check Nexus
+    uses: ./.github/workflows/__CI__build-check-app.yml
+    with:
+      workdir: nexus
