@@ -1,0 +1,88 @@
+name: Broadcaster CD 
+
+on:
+  push:
+    tags:
+      - "broadcaster-v*.*.*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs: 
+  build-publish-broadcaster-image:
+    name: "Build and publish Broadcaster image"
+    uses: ./.github/workflows/__CD__build-publish-image.yml
+    with:
+      app-name: broadcaster
+  deploy-broadcaster:
+    name: "Deploy Broadcaster image"
+    needs: build-publish-broadcaster-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run docker via remote SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.BROADCASTER_SSH_HOST }}
+          username: ${{ secrets.BROADCASTER_SSH_USERNAME }}
+          key: ${{ secrets.BROADCASTER_SSH_PRIV_KEY }}
+          script: |
+            # Exit if any command fails.
+            set -e
+
+            export APP_NAME=broadcaster
+            export TAG=${{ github.ref_name }}
+            export TAG=${TAG#*-v}
+
+            echo "Cleaning previous broadcaster docker image"
+            docker stop $APP_NAME
+            docker rm $APP_NAME
+
+            echo "Running a new broadcaster image - $TAG"
+            docker run -d --restart unless-stopped \
+              --name $APP_NAME \
+              -e SECRET_KEY_BASE=${{ secrets.BROADCASTER_SECRET_KEY_BASE }} \
+              -e PHX_HOST=${{ secrets.BROADCASTER_PHX_HOST }} \
+              -e ICE_PORT_RANGE=${{ secrets.BROADCASTER_ICE_PORT_RANGE }} \
+              -e ADMIN_USERNAME=${{ secrets.BROADCASTER_ADMIN_USERNAME }} \
+              -e ADMIN_PASSWORD=${{ secrets.BROADCASTER_ADMIN_PASSWORD }} \
+              -e WHIP_TOKEN=${{ secrets.BROADCASTER_WHIP_TOKEN }} \
+              --network host \
+              ghcr.io/elixir-webrtc/apps/$APP_NAME:$TAG
+
+            docker image prune --all --force
+
+            echo "Waiting for broadcaster to be ready."
+            attempts=10
+            until curl localhost:4000 > /dev/null 2>&1
+            do 
+              ((attempts--))
+              if [ $attempts -eq 0 ]; then
+                exit 1
+              fi
+              sleep 1
+            done
+            
+            echo "Cloning client script"
+            rm -rf /tmp/apps
+            git clone -b ${{ github.ref_name }} https://github.com/${{ github.repository }} /tmp/apps
+            cd /tmp/apps/broadcaster
+
+            echo "Terminating previously running client"
+            # ignore non-zero exit status
+            killall node || true
+            
+            # This is needed to find `node` and `npm` commands.
+            # See difference between interactive and non-interactive shells.
+            source ~/.nvm/nvm.sh
+            
+            echo "Installing puppeteer in current directory"
+            npm install puppeteer
+
+            # Run node in bg, disconnect it from terminal and redirect all output. 
+            # In other case action won't end.
+            echo "Running client script"
+            USERNAME=${{ secrets.BROADCASTER_ADMIN_USERNAME }} \
+              PASSWORD=${{ secrets.BROADCASTER_ADMIN_PASSWORD }} \
+              TOKEN=${{ secrets.BROADCASTER_WHIP_TOKEN }} \
+              nohup node headless_client.js > nohup.out 2> nohup.err < /dev/null &
