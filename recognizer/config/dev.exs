@@ -9,7 +9,7 @@ import Config
 config :recognizer, RecognizerWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 5002],
+  http: [ip: {127, 0, 0, 1}, port: 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -52,8 +52,9 @@ config :recognizer, RecognizerWeb.Endpoint,
     ]
   ]
 
-# Enable dev routes for dashboard and mailbox
-config :recognizer, dev_routes: true
+config :recognizer,
+  admin_username: "admin",
+  admin_password: "admin"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, level: :info, format: "[$level] $message\n"

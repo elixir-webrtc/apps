@@ -28,3 +28,5 @@ jobs:
       secret-key-base: ${{ secrets.RECOGNIZER_SECRET_KEY_BASE }}
       phx-host: ${{ secrets.RECOGNIZER_PHX_HOST }}
       ice-port-range: ${{ secrets.RECOGNIZER_ICE_PORT_RANGE }}
+      admin-username: ${{ secrets.RECOGNIZER_ADMIN_USERNAME }}
+      admin-password: ${{ secrets.RECOGNIZER_ADMIN_PASSWORD }}

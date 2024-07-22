@@ -1,0 +1,32 @@
+name: Nexus CD 
+
+on:
+  push:
+    tags:
+      - "nexus-v*.*.*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs: 
+  build-publish-nexus-image:
+    name: "Build and publish Nexus image"
+    uses: ./.github/workflows/__CD__build-publish-image.yml
+    with:
+      app-name: nexus
+  deploy-nexus:
+    name: "Deploy Nexus image"
+    needs: build-publish-nexus-image
+    uses: ./.github/workflows/__CD__deploy-image.yml
+    with:
+      app-name: nexus
+    secrets:
+      ssh-host: ${{ secrets.NEXUS_SSH_HOST }}
+      ssh-username: ${{ secrets.NEXUS_SSH_USERNAME }}
+      ssh-priv-key: ${{ secrets.NEXUS_SSH_PRIV_KEY }}
+      secret-key-base: ${{ secrets.NEXUS_SECRET_KEY_BASE }}
+      phx-host: ${{ secrets.NEXUS_PHX_HOST }}
+      ice-port-range: ${{ secrets.NEXUS_ICE_PORT_RANGE }}
+      admin-username: ${{ secrets.NEXUS_ADMIN_USERNAME }}
+      admin-password: ${{ secrets.NEXUS_ADMIN_PASSWORD }}
