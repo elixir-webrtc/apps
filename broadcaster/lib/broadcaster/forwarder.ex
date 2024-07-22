@@ -242,6 +242,7 @@ defmodule Broadcaster.Forwarder do
 
       true ->
         Logger.warning("Unknown process #{inspect(pid)} died with reason #{inspect(reason)}")
+        {:noreply, state}
     end
   end
 
