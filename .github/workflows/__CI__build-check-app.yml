@@ -108,9 +108,4 @@ jobs:
 
     - name: Check assets formatting
       if: ${{ !cancelled() }}
-      run: |
-        mix assets.format
-        if [[ -n "$(git status --porcelain)" ]]; then
-          echo "Assets formatter introduced changes. Run `mix assets.format` and commit the updated files"
-          exit 1
-        fi
+      run: mix assets.check
