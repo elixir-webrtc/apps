@@ -203,6 +203,7 @@ export const Home = {
 
     videoQuality.onchange = () => changeLayer(videoQuality.value);
 
+    settings.style.display = 'none';
     chatToggler.onclick = () => toggleBox(chat, settings);
     settingsToggler.onclick = () => toggleBox(settings, chat);
   },
