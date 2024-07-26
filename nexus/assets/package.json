@@ -5,7 +5,8 @@
   "main": "",
   "scripts": {
     "lint": "eslint 'js/**/*.js' --fix",
-    "format": "prettier --write 'js/**/*.js' 'css/**/*.css'"
+    "format": "prettier --write 'js/**/*.js' 'css/**/*.css'",
+    "check": "prettier --check 'js/**/*.js' 'css/**/*.css'"
   },
   "keywords": [],
   "author": "",

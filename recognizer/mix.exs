@@ -76,7 +76,8 @@ defmodule Recognizer.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
-      "assets.format": &lint_and_format_assets/1
+      "assets.format": &lint_and_format_assets/1,
+      "assets.check": &check_assets/1
     ]
   end
 
@@ -84,6 +85,17 @@ defmodule Recognizer.MixProject do
     with {_, 0} <- execute_npm_command(["ci"]),
          {_, 0} <- execute_npm_command(["run", "lint"]),
          {_, 0} <- execute_npm_command(["run", "format"]) do
+      :ok
+    else
+      {cmd, rc} ->
+        Mix.shell().error("npm command `#{Enum.join(cmd, " ")}` failed with code #{rc}")
+        exit({:shutdown, rc})
+    end
+  end
+
+  defp check_assets(_args) do
+    with {_, 0} <- execute_npm_command(["ci"]),
+         {_, 0} <- execute_npm_command(["run", "check"]) do
       :ok
     else
       {cmd, rc} ->
