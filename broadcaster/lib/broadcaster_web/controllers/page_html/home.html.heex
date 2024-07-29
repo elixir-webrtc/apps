@@ -1,5 +1,5 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper" class="grow">
+  <div id="videoplayer-wrapper" class="flex-1">
     <video
       id="videoplayer"
       class="m-auto rounded-xl max-h-full w-full bg-black"
@@ -11,7 +11,7 @@
   </div>
   <div
     id="chat"
-    class="flex-none hidden lg:flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
+    class="hidden lg:flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
   >
     <div id="chat-messages" class="overflow-y-scroll justify-end"></div>
 
@@ -40,7 +40,7 @@
   </div>
   <div
     id="settings"
-    class="flex-none hidden lg:flex overflow-hidden justify-start h-full text-wrap break-words w-96 p-7 border-brand/50 border-2 rounded-xl"
+    class="hidden overflow-hidden justify-start h-full text-wrap break-words w-96 p-7 border-brand/50 border-2 rounded-xl"
   >
     <div class="">
       <label for="video-quality" class="font-semibold text-brand/100">Video quality</label>
