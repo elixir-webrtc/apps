@@ -178,21 +178,30 @@ async function changeLayer(layer) {
 }
 
 function toggleBox(element, other) {
+  const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
   if (window.getComputedStyle(element).display === 'none') {
-    element.style.display = 'flex';
-    other.style.display = 'none';
-
     // For screen's width lower than 1024,
     // eiter show video player or chat at the same time.
     if (window.innerWidth < 1024) {
-      document.getElementById('videoplayer-wrapper').style.display = 'none';
+      element.classList.add('flex');
+      element.classList.remove('hidden', 'lg:flex');
+      other.classList.add('hidden');
+      other.classList.remove('flex', 'lg:flex');
+      videoPlayerWrapper.classList.remove('block');
+      videoPlayerWrapper.classList.add('hidden', 'lg:block');
+    } else {
+      element.classList.add('lg:flex', 'hidden');
+      element.classList.remove('flex');
+      other.classList.add('hidden');
+      other.classList.remove('flex', 'lg:flex');
+      videoPlayerWrapper.classList.remove('hidden', 'lg:block');
+      videoPlayerWrapper.classList.add('block');
     }
   } else {
-    element.style.display = 'none';
-
-    if (window.innerWidth < 1024) {
-      document.getElementById('videoplayer-wrapper').style.display = 'block';
-    }
+    element.classList.add('hidden');
+    element.classList.remove('flex', 'lg:flex');
+    videoPlayerWrapper.classList.remove('hidden', 'lg:block');
+    videoPlayerWrapper.classList.add('block');
   }
 }
 
