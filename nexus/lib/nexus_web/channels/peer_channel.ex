@@ -31,9 +31,11 @@ defmodule NexusWeb.PeerChannel do
   @impl true
   def join("peer:signalling", _payload, socket) do
     pid = self()
-    {:ok, id} = Room.add_peer(pid)
 
-    {:ok, assign(socket, :peer, id)}
+    case Room.add_peer(pid) do
+      {:ok, id} -> {:ok, assign(socket, :peer, id)}
+      {:error, _reason} = error -> error
+    end
   end
 
   @impl true

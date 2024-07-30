@@ -51,7 +51,6 @@ defmodule Nexus.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
-      {:bunch, "~> 1.6"},
       # {:ex_webrtc, "~> 0.3.0"},
       # {:ex_webrtc_dashboard, "~> 0.3.0"},
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"},
