@@ -9,25 +9,21 @@ defmodule Nexus.Room do
   alias NexusWeb.PeerChannel
 
   @peer_ready_timeout_s 10
+  @peer_limit 32
 
   @spec start_link(term()) :: GenServer.on_start()
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @spec add_peer(pid()) :: {:ok, Peer.id()} | :error
+  @spec add_peer(pid()) :: {:ok, Peer.id()} | {:error, :peer_limit_reached}
   def add_peer(channel_pid) do
     GenServer.call(__MODULE__, {:add_peer, channel_pid})
   end
 
-  @spec mark_ready(Peer.id(), pid(), map()) :: :ok | {:peer_mismatch, [Peer.id()]}
-  def mark_ready(peer, pc, peer_track_specs) do
-    GenServer.call(__MODULE__, {:mark_ready, peer, pc, peer_track_specs})
-  end
-
-  @spec broadcast_pli() :: :ok
-  def broadcast_pli() do
-    GenServer.cast(__MODULE__, :broadcast_pli)
+  @spec mark_ready(Peer.id(), [Peer.id()]) :: :ok | {:peer_mismatch, [Peer.id()]}
+  def mark_ready(peer, known_peer_ids) do
+    GenServer.call(__MODULE__, {:mark_ready, peer, known_peer_ids})
   end
 
   @impl true
@@ -39,6 +35,13 @@ defmodule Nexus.Room do
     }
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:add_peer, _channel_pid}, _from, state)
+      when map_size(state.pending_peers) + map_size(state.peers) == @peer_limit do
+    Logger.warning("Unable to add new peer: reached peer limit (#{@peer_limit})")
+    {:reply, {:error, :peer_limit_reached}, state}
   end
 
   @impl true
@@ -63,21 +66,16 @@ defmodule Nexus.Room do
   end
 
   @impl true
-  def handle_call({:mark_ready, id, pc, peer_track_specs}, _from, state)
+  def handle_call({:mark_ready, id, known_peer_ids}, _from, state)
       when is_map_key(state.pending_peers, id) do
     # FIXME: this seems like a crude way of alleviating certain RCs
     current_peer_ids = Map.keys(state.peers)
 
-    if current_peer_ids |> Enum.sort() != peer_track_specs |> Map.keys() |> Enum.sort() do
+    if Enum.sort(current_peer_ids) != Enum.sort(known_peer_ids) do
       {:reply, {:peer_mismatch, current_peer_ids}, state}
     else
       Logger.info("Peer #{id} ready")
-
-      peer_track_specs
-      |> Enum.each(fn {peer, track_specs} ->
-        Peer.notify(peer, {:peer_added, id})
-        Peer.notify(peer, {:subscribe, id, Map.put(track_specs, :pc, pc)})
-      end)
+      Peer.peer_added(id)
 
       {peer_data, state} = pop_in(state, [:pending_peers, id])
       state = put_in(state, [:peers, id], peer_data)
@@ -87,19 +85,10 @@ defmodule Nexus.Room do
   end
 
   @impl true
-  def handle_call({:mark_ready, peer, _pc, _obts}, _from, state) do
-    Logger.debug("Peer #{peer} was already marked as ready, ignoring")
+  def handle_call({:mark_ready, id, _peer_ids}, _from, state) do
+    Logger.debug("Peer #{id} was already marked as ready, ignoring")
 
     {:reply, :ok, state}
-  end
-
-  @impl true
-  def handle_cast(:broadcast_pli, state) do
-    state.peers
-    |> Map.keys()
-    |> Enum.each(&Peer.send_pli/1)
-
-    {:noreply, state}
   end
 
   @impl true
@@ -125,15 +114,13 @@ defmodule Nexus.Room do
         is_map_key(state.pending_peers, id) ->
           {peer_data, state} = pop_in(state, [:pending_peers, id])
           :ok = PeerChannel.close(peer_data.channel)
+
           state
 
         is_map_key(state.peers, id) ->
           {peer_data, state} = pop_in(state, [:peers, id])
           :ok = PeerChannel.close(peer_data.channel)
-
-          state.peers
-          |> Map.keys()
-          |> Enum.each(&Peer.notify(&1, {:peer_removed, id}))
+          Peer.peer_removed(id)
 
           state
       end

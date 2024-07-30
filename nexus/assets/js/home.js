@@ -115,8 +115,26 @@ async function joinChannel() {
     pc.addIceCandidate(candidate);
   });
 
-  channel.join();
-  console.log('Joined channel peer:signalling');
+  channel
+    .join()
+    .receive('ok', (_) => console.log('Joined channel peer:signalling'))
+    .receive('error', (resp) => {
+      console.error('Unable to join the room:', resp);
+      socket.disconnect();
+
+      videoPlayerWrapper.removeChild(localVideoPlayer);
+      console.log(`Closing stream with id: ${localStream.id}`);
+      localStream.getTracks().forEach((track) => track.stop());
+      localStream = undefined;
+
+      const errorNode = document.getElementById('join-error-message');
+      errorNode.innerText = 'Unable to join the room';
+      if (resp == 'peer_limit_reached') {
+        errorNode.innerText +=
+          ': Peer limit reached. Try again in a few minutes';
+      }
+      errorNode.classList.remove('hidden');
+    });
 }
 
 function updateVideoGrid() {
