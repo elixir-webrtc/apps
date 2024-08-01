@@ -116,10 +116,12 @@ defmodule Broadcaster.PeerSupervisor do
   end
 
   defp gather_candidates(pc) do
+    # we either wait for all of the candidates
+    # or whatever we were able to gather in one second
     receive do
       {:ex_webrtc, ^pc, {:ice_gathering_state_change, :complete}} -> :ok
     after
-      1000 -> {:error, :timeout}
+      1000 -> :ok
     end
   end
 
