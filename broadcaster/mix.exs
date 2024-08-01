@@ -58,6 +58,7 @@ defmodule Broadcaster.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
+      {:corsica, "~> 2.1.3"},
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", override: true},
       {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"},
 
