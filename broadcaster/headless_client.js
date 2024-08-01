@@ -8,6 +8,7 @@ const token = (process.env.TOKEN === undefined) ? 'example' : process.env.TOKEN;
 async function start() {
     const browser = await puppeteer.launch({
         // headless: false,
+        dumpio: true,
         args: [
             '--no-sandbox',
             '--use-fake-ui-for-media-stream',
