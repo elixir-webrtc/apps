@@ -16,7 +16,10 @@ async function start() {
         ]
     });
 
+    console.log("Initialising the client...");
+
     const page = await browser.newPage();
+    page.on('console', msg => console.log('PAGE LOG:', msg.text()));
     // we need a page with secure context in order to access userMedia
     await page.goto(`${url}/notfound`);
     await page.evaluate(async (url, token) => {
@@ -31,11 +34,14 @@ async function start() {
 
         const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         pc.onconnectionstatechange = async (_) => {
+            console.log("Connection state changed:", pc.connectionState);
             if (pc.connectionState === "failed") {
                 await browser.close();
                 start();
             }
         };
+
+        pc.onicegatheringstatechange = (_) => console.log("ICE gathering state changed:", pc.iceGatheringState);
 
         pc.addTrack(localStream.getAudioTracks()[0], localStream);
         pc.addTransceiver(localStream.getVideoTracks()[0], {
