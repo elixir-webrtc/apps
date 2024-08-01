@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 (async () => {
     const browser = await puppeteer.launch({
         // headless: false,
+        dumpio: true,
         args: [
             '--no-sandbox',
             '--use-fake-ui-for-media-stream',
