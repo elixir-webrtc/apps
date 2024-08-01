@@ -60,6 +60,7 @@ defmodule Broadcaster.MixProject do
       {:bandit, "~> 1.2"},
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", override: true},
       {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"},
+      {:ex_ice, github: "elixir-webrtc/ex_ice", branch: "rtx", override: true},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
