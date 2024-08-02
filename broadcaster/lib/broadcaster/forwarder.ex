@@ -205,7 +205,7 @@ defmodule Broadcaster.Forwarder do
   def handle_info({:ex_webrtc, _pc, {:rtcp, packets}}, state) do
     for packet <- packets do
       case packet do
-        %ExRTCP.Packet.PayloadFeedback.PLI{} when state.input_pc != nil ->
+        {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} when state.input_pc != nil ->
           layer = default_layer(state)
           :ok = PeerConnection.send_pli(state.input_pc, state.video_input, layer)
 
