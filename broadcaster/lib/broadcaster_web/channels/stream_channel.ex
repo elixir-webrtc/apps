@@ -12,11 +12,6 @@ defmodule BroadcasterWeb.StreamChannel do
   end
 
   @impl true
-  def join("stream:chat-admin", _, socket) do
-    {:ok, socket}
-  end
-
-  @impl true
   def handle_in("chat_msg", _, %{assigns: %{nickname: nil}} = socket) do
     {:noreply, socket}
   end
@@ -26,11 +21,10 @@ defmodule BroadcasterWeb.StreamChannel do
     msg = %{
       body: body,
       nickname: socket.assigns.nickname,
-      id: "#{socket.assigns.nickname}:#{socket.assigns.id}"
+      id: "#{socket.assigns.user_id}:#{socket.assigns.id}"
     }
 
     broadcast!(socket, "chat_msg", msg)
-    BroadcasterWeb.Endpoint.broadcast!("stream:chat-admin", "chat_msg", msg)
 
     {:noreply, assign(socket, :id, socket.assigns.id + 1)}
   end

@@ -208,7 +208,7 @@ function toggleBox(element, other) {
 export const Home = {
   mounted() {
     connectMedia();
-    connectChat();
+    connectChat(false);
 
     videoQuality.onchange = () => changeLayer(videoQuality.value);
 

@@ -1,4 +1,4 @@
-import { connectAdminChat } from './chat.js';
+import { connectChat } from './chat.js';
 
 const audioDevices = document.getElementById('audioDevices');
 const videoDevices = document.getElementById('videoDevices');
@@ -180,7 +180,7 @@ async function run() {
 
 export const Panel = {
   mounted() {
-    connectAdminChat();
+    connectChat(true);
     run();
   },
 };

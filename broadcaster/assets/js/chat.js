@@ -1,5 +1,74 @@
 import { Socket, Presence } from 'phoenix';
 
+export async function connectChat(isAdmin) {
+  const viewercount = document.getElementById('viewercount');
+  const chatMessages = document.getElementById('chat-messages');
+  const chatInput = document.getElementById('chat-input');
+  const chatNickname = document.getElementById('chat-nickname');
+  const chatButton = document.getElementById('chat-button');
+
+  let socket = new Socket('/socket', { params: { token: window.userToken } });
+
+  socket.connect();
+
+  const channel = socket.channel('stream:chat');
+  const presence = new Presence(channel);
+
+  presence.onSync(() => {
+    viewercount.innerText = presence.list().length;
+  });
+
+  if (!isAdmin) {
+    const send = () => {
+      const body = chatInput.value.trim();
+      if (body != '') {
+        channel.push('chat_msg', { body: body });
+        chatInput.value = '';
+      }
+    };
+
+    channel.on('join_chat_resp', (resp) => {
+      if (resp.result === 'success') {
+        chatButton.innerText = 'Send';
+        chatButton.onclick = send;
+        chatNickname.disabled = true;
+        chatInput.disabled = false;
+        chatInput.onkeydown = (ev) => {
+          if (ev.key === 'Enter') {
+            // prevent from adding a new line in our text area
+            ev.preventDefault();
+            send();
+          }
+        };
+      } else {
+        chatNickname.classList.add('invalid-input');
+      }
+    });
+
+    chatButton.onclick = () => {
+      channel.push('join_chat', { nickname: chatNickname.value });
+    };
+
+    chatNickname.onclick = () => {
+      chatNickname.classList.remove('invalid-input');
+    };
+  }
+
+  channel
+    .join()
+    .receive('ok', (resp) => {
+      console.log('Joined chat channel successfully', resp);
+    })
+    .receive('error', (resp) => {
+      console.log('Unable to join chat channel', resp);
+    });
+
+  channel.on('chat_msg', (msg) =>
+    appendChatMessage(chatMessages, msg, isAdmin)
+  );
+  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
+}
+
 function appendChatMessage(chatMessages, msg, isAdmin) {
   if (msg.nickname == undefined || msg.body == undefined) return;
 
@@ -50,90 +119,4 @@ function deleteChatMessage(chatMessages, msg) {
       child.lastChild.style.fontStyle = 'italic';
     }
   }
-}
-
-export async function connectChat() {
-  const viewercount = document.getElementById('viewercount');
-  const chatMessages = document.getElementById('chat-messages');
-  const chatInput = document.getElementById('chat-input');
-  const chatNickname = document.getElementById('chat-nickname');
-  const chatButton = document.getElementById('chat-button');
-
-  let socket = new Socket('/socket', { params: { token: window.userToken } });
-
-  socket.connect();
-
-  const channel = socket.channel('stream:chat');
-  const presence = new Presence(channel);
-
-  const send = function () {
-    const body = chatInput.value.trim();
-    if (body != '') {
-      channel.push('chat_msg', { body: body });
-      chatInput.value = '';
-    }
-  };
-
-  presence.onSync(() => {
-    viewercount.innerText = presence.list().length;
-  });
-
-  channel
-    .join()
-    .receive('ok', (resp) => {
-      console.log('Joined chat channel successfully', resp);
-    })
-    .receive('error', (resp) => {
-      console.log('Unable to join chat channel', resp);
-    });
-
-  channel.on('join_chat_resp', (resp) => {
-    if (resp.result === 'success') {
-      chatButton.innerText = 'Send';
-      chatButton.onclick = send;
-      chatNickname.disabled = true;
-      chatInput.disabled = false;
-      chatInput.onkeydown = (ev) => {
-        if (ev.key === 'Enter') {
-          // prevent from adding a new line in our text area
-          ev.preventDefault();
-          send();
-        }
-      };
-    } else {
-      chatNickname.classList.add('invalid-input');
-    }
-  });
-
-  channel.on('chat_msg', (msg) => appendChatMessage(chatMessages, msg, false));
-  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
-
-  chatButton.onclick = () => {
-    channel.push('join_chat', { nickname: chatNickname.value });
-  };
-
-  chatNickname.onclick = () => {
-    chatNickname.classList.remove('invalid-input');
-  };
-}
-
-export function connectAdminChat() {
-  const chatMessages = document.getElementById('chat-messages');
-
-  let socket = new Socket('/socket', { params: { token: window.userToken } });
-
-  socket.connect();
-
-  const channel = socket.channel('stream:chat-admin');
-  channel
-    .join()
-    .receive('ok', (resp) => {
-      console.log('Joined chat admin channel successfully', resp);
-    })
-    .receive('error', (resp) => {
-      console.log('Unable to join admin chat channel', resp);
-    });
-
-  channel.on('chat_msg', (msg) => appendChatMessage(chatMessages, msg, true));
-  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
 }
