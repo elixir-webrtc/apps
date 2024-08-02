@@ -1,6 +1,62 @@
 import { Socket, Presence } from 'phoenix';
 
+<<<<<<< HEAD
 export async function connectChat(isAdmin) {
+=======
+function appendChatMessage(chatMessages, msg, isAdmin) {
+  if (msg.nickname == undefined || msg.body == undefined) return;
+
+  const chatMessage = document.createElement('div');
+  chatMessage.classList.add('chat-message');
+  chatMessage.setAttribute('data-id', msg.id);
+
+  const nickname = document.createElement('div');
+  nickname.classList.add('chat-nickname');
+  nickname.innerText = msg.nickname;
+  chatMessage.appendChild(nickname);
+
+  if (isAdmin) {
+    const remove = document.createElement('button');
+    remove.innerText = 'remove';
+    remove.classList.add('chat-remove');
+    remove.onclick = async () => {
+      const response = await fetch(
+        `${window.location.origin}/api/admin/chat/${msg.id}`,
+        { method: 'DELETE' }
+      );
+      if (response.status != 200) {
+        console.warn('Deleting message failed');
+      }
+    };
+    chatMessage.appendChild(remove);
+  }
+
+  const body = document.createElement('div');
+  body.innerText = msg.body;
+  chatMessage.appendChild(body);
+
+  chatMessages.appendChild(chatMessage);
+
+  // scroll to the bottom after adding a message
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // allow for 1 scroll history
+  if (chatMessages.scrollHeight > 2 * chatMessages.clientHeight) {
+    chatMessages.removeChild(chatMessages.children[0]);
+  }
+}
+
+function deleteChatMessage(chatMessages, msg) {
+  for (const child of chatMessages.children) {
+    if (child.getAttribute('data-id') == msg.id) {
+      child.lastChild.innerText = 'Removed by moderator';
+      child.lastChild.style.fontStyle = 'italic';
+    }
+  }
+}
+
+export async function connectChat() {
+>>>>>>> 04d187f (Rename player to panel, allow for remving chat messages by admin)
   const viewercount = document.getElementById('viewercount');
   const chatMessages = document.getElementById('chat-messages');
   const chatInput = document.getElementById('chat-input');
@@ -63,6 +119,7 @@ export async function connectChat(isAdmin) {
       console.log('Unable to join chat channel', resp);
     });
 
+<<<<<<< HEAD
   channel.on('chat_msg', (msg) =>
     appendChatMessage(chatMessages, msg, isAdmin)
   );
@@ -119,4 +176,55 @@ function deleteChatMessage(chatMessages, msg) {
       child.lastChild.style.fontStyle = 'italic';
     }
   }
+=======
+  channel.on('join_chat_resp', (resp) => {
+    if (resp.result === 'success') {
+      chatButton.innerText = 'Send';
+      chatButton.onclick = send;
+      chatNickname.disabled = true;
+      chatInput.disabled = false;
+      chatInput.onkeydown = (ev) => {
+        if (ev.key === 'Enter') {
+          // prevent from adding a new line in our text area
+          ev.preventDefault();
+          send();
+        }
+      };
+    } else {
+      chatNickname.classList.add('invalid-input');
+    }
+  });
+
+  channel.on('chat_msg', (msg) => appendChatMessage(chatMessages, msg, false));
+  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
+
+  chatButton.onclick = () => {
+    channel.push('join_chat', { nickname: chatNickname.value });
+  };
+
+  chatNickname.onclick = () => {
+    chatNickname.classList.remove('invalid-input');
+  };
+>>>>>>> 04d187f (Rename player to panel, allow for remving chat messages by admin)
+}
+
+export function connectAdminChat() {
+  const chatMessages = document.getElementById('chat-messages');
+
+  let socket = new Socket('/socket', { params: { token: window.userToken } });
+
+  socket.connect();
+
+  const channel = socket.channel('stream:chat-admin');
+  channel
+    .join()
+    .receive('ok', (resp) => {
+      console.log('Joined chat admin channel successfully', resp);
+    })
+    .receive('error', (resp) => {
+      console.log('Unable to join admin chat channel', resp);
+    });
+
+  channel.on('chat_msg', (msg) => appendChatMessage(chatMessages, msg, true));
+  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
 }

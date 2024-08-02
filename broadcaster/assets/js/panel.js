@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { connectChat } from './chat.js';
+=======
+import { connectAdminChat } from './chat.js';
+>>>>>>> 04d187f (Rename player to panel, allow for remving chat messages by admin)
 
 const audioDevices = document.getElementById('audioDevices');
 const videoDevices = document.getElementById('videoDevices');
@@ -180,7 +184,11 @@ async function run() {
 
 export const Panel = {
   mounted() {
+<<<<<<< HEAD
     connectChat(true);
+=======
+    connectAdminChat();
+>>>>>>> 04d187f (Rename player to panel, allow for remving chat messages by admin)
     run();
   },
 };
