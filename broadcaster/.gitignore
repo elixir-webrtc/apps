@@ -36,3 +36,8 @@ npm-debug.log
 /assets/node_modules/
 
 /_dialyzer/
+
+# artifacts of the headless_client.js
+/node_modules
+package.json
+package-lock.json
