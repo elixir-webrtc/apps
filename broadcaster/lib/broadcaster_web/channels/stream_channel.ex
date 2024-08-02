@@ -12,11 +12,6 @@ defmodule BroadcasterWeb.StreamChannel do
   end
 
   @impl true
-  def join("stream:chat-admin", _, socket) do
-    {:ok, socket}
-  end
-
-  @impl true
   def handle_in("chat_msg", _, %{assigns: %{nickname: nil}} = socket) do
     {:noreply, socket}
   end

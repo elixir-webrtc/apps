@@ -18,6 +18,16 @@
   font-weight: 600;
 }
 
+.chat-bar {
+  width: 100%;
+  display: flex;
+}
+
+.chat-remove {
+  font-weight: 800;
+  margin-left: auto;
+}
+
 /* from https://stackoverflow.com/a/38994837/9620900 */
 /* Hiding scrollbar for Chrome, Safari and Opera */
 #chat-messages::-webkit-scrollbar {
