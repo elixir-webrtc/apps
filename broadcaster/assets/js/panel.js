@@ -1,3 +1,5 @@
+import { connectAdminChat } from './chat.js';
+
 const audioDevices = document.getElementById('audioDevices');
 const videoDevices = document.getElementById('videoDevices');
 const serverUrl = document.getElementById('serverUrl');
@@ -176,8 +178,9 @@ async function run() {
   bindControls();
 }
 
-export const Player = {
+export const Panel = {
   mounted() {
+    connectAdminChat();
     run();
   },
 };
