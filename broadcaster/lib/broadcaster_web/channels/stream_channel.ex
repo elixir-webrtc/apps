@@ -21,12 +21,12 @@ defmodule BroadcasterWeb.StreamChannel do
     msg = %{
       body: body,
       nickname: socket.assigns.nickname,
-      id: "#{socket.assigns.user_id}:#{socket.assigns.id}"
+      id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}"
     }
 
     broadcast!(socket, "chat_msg", msg)
 
-    {:noreply, assign(socket, :id, socket.assigns.id + 1)}
+    {:noreply, assign(socket, :msg_count, socket.assigns.msg_count + 1)}
   end
 
   @impl true
@@ -36,7 +36,7 @@ defmodule BroadcasterWeb.StreamChannel do
         socket =
           socket
           |> assign(:nickname, nickname)
-          |> assign(:id, 0)
+          |> assign(:msg_count, 0)
 
         :ok = push(socket, "join_chat_resp", %{"result" => "success"})
         {:noreply, socket}
