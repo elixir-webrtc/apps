@@ -95,7 +95,6 @@ async function startStreaming() {
     .filter((sender) => sender.track.kind === 'video')
     .forEach(async (sender) => {
       const params = sender.getParameters();
-      console.log(params.encodings);
       params.encodings.find((e) => e.rid === 'h').maxBitrate =
         parseInt(highVideoBitrate.value) * 1024;
       params.encodings.find((e) => e.rid === 'm').maxBitrate =
@@ -123,10 +122,14 @@ async function startStreaming() {
     if (response.status == 201) {
       const sdp = await response.text();
       await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
+      button.innerText = 'Stop Streaming';
+      button.onclick = stopStreaming;
+    } else {
+      console.error('Request to server failed with response:', response);
+      pc.close();
+      pc = undefined;
+      enableControls();
     }
-
-    button.innerText = 'Stop Streaming';
-    button.onclick = stopStreaming;
   } catch (err) {
     console.error(err);
     pc.close();
