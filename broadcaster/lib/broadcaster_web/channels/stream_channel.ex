@@ -18,15 +18,26 @@ defmodule BroadcasterWeb.StreamChannel do
 
   @impl true
   def handle_in("chat_msg", %{"body" => body}, socket) do
-    broadcast!(socket, "chat_msg", %{body: body, nickname: socket.assigns.nickname})
-    {:noreply, socket}
+    msg = %{
+      body: body,
+      nickname: socket.assigns.nickname,
+      id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}"
+    }
+
+    broadcast!(socket, "chat_msg", msg)
+
+    {:noreply, assign(socket, :msg_count, socket.assigns.msg_count + 1)}
   end
 
   @impl true
   def handle_in("join_chat", %{"nickname" => nickname}, socket) do
     case register(nickname) do
       :ok ->
-        socket = assign(socket, :nickname, nickname)
+        socket =
+          socket
+          |> assign(:nickname, nickname)
+          |> assign(:msg_count, 0)
+
         :ok = push(socket, "join_chat_resp", %{"result" => "success"})
         {:noreply, socket}
 

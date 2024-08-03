@@ -23,11 +23,11 @@ import { LiveSocket } from 'phoenix_live_view';
 import topbar from '../vendor/topbar';
 
 import { Home } from './home.js';
-import { Player } from './player.js';
+import { Panel } from './panel.js';
 
 let Hooks = {};
 Hooks.Home = Home;
-Hooks.Player = Player;
+Hooks.Panel = Panel;
 
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")

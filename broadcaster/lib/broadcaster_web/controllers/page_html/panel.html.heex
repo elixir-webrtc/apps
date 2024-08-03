@@ -1,4 +1,4 @@
-<div id="player" phx-hook="Player" class="p-10">
+<div id="panel" phx-hook="Panel" class="p-10">
   <h1>WHIP Player</h1>
   <div>
     <div class="p-2">
@@ -32,5 +32,11 @@
       <h3>Preview</h3>
       <video id="previewPlayer" controls autoplay muted></video>
     </div>
+  </div>
+  <div
+    id="chat"
+    class="hidden lg:flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
+  >
+    <div id="chat-messages" class="overflow-y-scroll justify-end"></div>
   </div>
 </div>

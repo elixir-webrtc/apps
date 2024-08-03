@@ -26,7 +26,7 @@ defmodule BroadcasterWeb.Router do
     pipe_through :auth
     pipe_through :browser
 
-    get "/player", PageController, :player
+    get "/panel", PageController, :panel
 
     live_dashboard "/dashboard",
       metrics: BroadcasterWeb.Telemetry,
@@ -43,6 +43,12 @@ defmodule BroadcasterWeb.Router do
       get "/sse/event-stream", MediaController, :event_stream
       post "/sse", MediaController, :sse
       post "/layer", MediaController, :layer
+    end
+
+    scope "/admin" do
+      pipe_through :auth
+
+      delete "/chat/:id", PageController, :delete_chat_message
     end
   end
 
