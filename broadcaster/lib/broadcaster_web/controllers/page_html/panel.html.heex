@@ -1,41 +1,73 @@
-<div id="panel" phx-hook="Panel" class="p-10">
-  <h1>WHIP Player</h1>
-  <div>
-    <div class="p-2">
-      <label for="audioDevices">Audio Input Device:</label>
-      <select id="audioDevices"></select>
+<div id="panel" phx-hook="Panel" class="h-full flex justify-between">
+  <div class="flex flex-col gap-6">
+    <div class="flex gap-6">
+      <div>
+        <label for="audioDevices" class="font-semibold text-brand/100">Audio Device</label>
+        <select id="audioDevices" class="border-brand/50 text-brand/90 rounded-xl"></select>
+      </div>
+      <div>
+        <label for="videoDevices" class="font-semibold text-brand/100">Video Device</label>
+        <select id="videoDevices" class="border-brand/50 text-brand/90 rounded-xl"></select>
+      </div>
     </div>
-    <div class="p-2">
-      <label for="videoDevices">Video Input Device:</label>
-      <select id="videoDevices"></select>
+    <div class="flex flex-col gap-2">
+      <p class="font-semibold text-brand/100">Max bitrate (kbps)</p>
+      <div class="flex gap-6">
+        <div>
+          <label for="highVideoBitrate" class="font-semibold text-brand/100">High</label>
+          <input
+            type="text"
+            id="highVideoBitrate"
+            value="1500"
+            class="border-brand/50 text-brand/90 rounded-xl"
+          />
+        </div>
+        <div>
+          <label for="mediumVideoBitrate" class="font-semibold text-brand/100">Medium</label>
+          <input
+            type="text"
+            id="mediumVideoBitrate"
+            value="600"
+            class="border-brand/50 text-brand/90 rounded-xl"
+          />
+        </div>
+        <div>
+          <label for="lowVideoBitrate" class="font-semibold text-brand/100">Low</label>
+          <input
+            type="text"
+            id="lowVideoBitrate"
+            value="200"
+            class="border-brand/50 text-brand/90 rounded-xl"
+          />
+        </div>
+      </div>
     </div>
-    <div class="p-2">
-      <label for="highVideoBitrate">Max Video Bitrate (high, kbps):</label>
-      <input type="text" id="highVideoBitrate" value="1500" />
-      <label for="mediumVideoBitrate">Max Video Bitrate (medium, kbps):</label>
-      <input type="text" id="mediumVideoBitrate" value="600" />
-      <label for="lowVideoBitrate">Max Video Bitrate (low, kbps):</label>
-      <input type="text" id="lowVideoBitrate" value="200" />
+    <div class="flex gap-6 justify-items">
+      <div>
+        <label for="serverUrl" class="font-semibold text-brand/100">Server URL</label>
+        <input type="text" id="serverUrl" class="border-brand/50 text-brand/90 rounded-xl" />
+      </div>
+      <div>
+        <label for="serverToken" class="font-semibold text-brand/100"> Server Token</label>
+        <input type="password" id="serverToken" class="border-brand/50 text-brand/90 rounded-xl" />
+      </div>
     </div>
-    <div class="p-2">
-      <label for="serverUrl">Server URL</label>
-      <input type="text" id="serverUrl" />
+    <div>
+      <button
+        id="button"
+        class="rounded-lg bg-brand/10 px-2 py-1 hover:bg-brand/20 text-brand/80 font-bold"
+      >
+        Start streaming
+      </button>
     </div>
-    <div class="p-2">
-      <label for="serverToken"> Server Token </label>
-      <input type="password" id="serverToken" />
-    </div>
-    <div class="p-2">
-      <button id="button">Start streaming</button>
-    </div>
-    <div class="p-2">
-      <h3>Preview</h3>
-      <video id="previewPlayer" controls autoplay muted></video>
+    <div id="videoplayer-wrapper" class="flex-1 min-h-0">
+      <video id="previewPlayer" class="m-auto rounded-xl bg-black h-full" autoplay controls muted>
+      </video>
     </div>
   </div>
   <div
     id="chat"
-    class="hidden lg:flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
+    class="flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
   >
     <div id="chat-messages" class="overflow-y-scroll justify-end"></div>
   </div>

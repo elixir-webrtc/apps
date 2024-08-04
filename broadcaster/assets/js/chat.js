@@ -76,10 +76,13 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
   chatMessage.classList.add('chat-message');
   chatMessage.setAttribute('data-id', msg.id);
 
+  const bar = document.createElement('div');
+  bar.classList.add('chat-bar');
+
   const nickname = document.createElement('div');
   nickname.classList.add('chat-nickname');
   nickname.innerText = msg.nickname;
-  chatMessage.appendChild(nickname);
+  bar.appendChild(nickname);
 
   if (isAdmin) {
     const remove = document.createElement('button');
@@ -94,8 +97,10 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
         console.warn('Deleting message failed');
       }
     };
-    chatMessage.appendChild(remove);
+    bar.appendChild(remove);
   }
+
+  chatMessage.appendChild(bar);
 
   const body = document.createElement('div');
   body.innerText = msg.body;
