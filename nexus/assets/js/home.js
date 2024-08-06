@@ -1,9 +1,9 @@
-import { connectChat } from './chat.js';
-import { Socket } from 'phoenix';
+import { Socket, Presence } from 'phoenix';
 
 const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const localVideoPlayer = document.getElementById('videoplayer-local');
 const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
+const peerCount = document.getElementById('viewercount');
 
 let localStream = undefined;
 let channel = undefined;
@@ -115,6 +115,11 @@ async function joinChannel() {
     pc.addIceCandidate(candidate);
   });
 
+  const presence = new Presence(channel);
+  presence.onSync(() => {
+    peerCount.innerText = presence.list().length;
+  });
+
   channel
     .join()
     .receive('ok', (_) => console.log('Joined channel peer:signalling'))
@@ -158,8 +163,6 @@ function updateVideoGrid() {
 
 export const Home = {
   async mounted() {
-    connectChat();
-
     await createPeerConnection();
     await setupLocalMedia();
     joinChannel();

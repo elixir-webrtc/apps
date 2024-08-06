@@ -148,20 +148,8 @@ defmodule Nexus.Peer do
     state =
       case PeerConnection.set_remote_description(pc, answer) do
         :ok ->
-          outbound_tracks =
-            state.outbound_tracks
-            |> Map.new(fn {peer, spec} ->
-              unless spec.subscribed? do
-                spec
-                |> Map.delete(:subscribed?)
-                |> Map.put(:pc, pc)
-                |> then(&add_subscriber(peer, state.id, &1))
-              end
-
-              {peer, %{spec | subscribed?: true}}
-            end)
-
-          %{state | outbound_tracks: outbound_tracks}
+          state
+          |> subscribe_to_new_tracks()
           |> handle_pending_peers()
 
         {:error, reason} ->
@@ -361,6 +349,23 @@ defmodule Nexus.Peer do
     :ok = PeerConnection.stop_transceiver(state.pc, spec.transceivers.audio)
 
     state
+  end
+
+  defp subscribe_to_new_tracks(state) do
+    outbound_tracks =
+      state.outbound_tracks
+      |> Map.new(fn {peer, spec} ->
+        unless spec.subscribed? do
+          spec
+          |> Map.delete(:subscribed?)
+          |> Map.put(:pc, state.pc)
+          |> then(&add_subscriber(peer, state.id, &1))
+        end
+
+        {peer, %{spec | subscribed?: true}}
+      end)
+
+    %{state | outbound_tracks: outbound_tracks}
   end
 
   defp handle_pending_peers(state) do

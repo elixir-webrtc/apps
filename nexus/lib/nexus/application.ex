@@ -23,8 +23,7 @@ defmodule Nexus.Application do
       NexusWeb.Presence,
       Nexus.PeerSupervisor,
       Nexus.Room,
-      {Registry, name: Nexus.PeerRegistry, keys: :unique},
-      {Registry, name: Nexus.ChatNicknamesRegistry, keys: :unique}
+      {Registry, name: Nexus.PeerRegistry, keys: :unique}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
