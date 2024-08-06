@@ -54,7 +54,7 @@ defmodule Recognizer.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:ex_webrtc, github: "elixir-webrtc/ex_webrtc"},
       {:ex_webrtc_dashboard, github: "elixir-webrtc/ex_webrtc_dashboard"},
-      {:xav, "~> 0.4.0"},
+      {:xav, github: "mickel8/xav"},
       {:bumblebee, "~> 0.5.3"},
       {:exla, "~> 0.7.1"},
 
