@@ -131,14 +131,8 @@ defmodule Recognizer.Room do
         {:ex_webrtc, _pc, {:rtp, track_id, nil, packet}},
         %{video_track: %{id: track_id}} = state
       ) do
-    {frame, state} =
-      case Depayloader.write(state.video_depayloader, packet) do
-        {:ok, d} ->
-          {nil, %{state | video_depayloader: d}}
-
-        {:ok, frame, d} ->
-          {frame, %{state | video_depayloader: d}}
-      end
+    {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
+    state = %{state | video_depayloader: depayloader}
 
     state =
       with false <- is_nil(frame),
