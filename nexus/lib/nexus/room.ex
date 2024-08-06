@@ -21,9 +21,9 @@ defmodule Nexus.Room do
     GenServer.call(__MODULE__, {:add_peer, channel_pid})
   end
 
-  @spec mark_ready(Peer.id(), [Peer.id()]) :: :ok | {:peer_mismatch, [Peer.id()]}
-  def mark_ready(peer, known_peer_ids) do
-    GenServer.call(__MODULE__, {:mark_ready, peer, known_peer_ids})
+  @spec mark_ready(Peer.id()) :: :ok
+  def mark_ready(peer) do
+    GenServer.call(__MODULE__, {:mark_ready, peer})
   end
 
   @impl true
@@ -66,22 +66,15 @@ defmodule Nexus.Room do
   end
 
   @impl true
-  def handle_call({:mark_ready, id, known_peer_ids}, _from, state)
+  def handle_call({:mark_ready, id}, _from, state)
       when is_map_key(state.pending_peers, id) do
-    # FIXME: this seems like a crude way of alleviating certain RCs
-    current_peer_ids = Map.keys(state.peers)
+    Logger.info("Peer #{id} ready")
+    broadcast({:peer_added, id}, state)
 
-    if Enum.sort(current_peer_ids) != Enum.sort(known_peer_ids) do
-      {:reply, {:peer_mismatch, current_peer_ids}, state}
-    else
-      Logger.info("Peer #{id} ready")
-      Peer.peer_added(id)
+    {peer_data, state} = pop_in(state, [:pending_peers, id])
+    state = put_in(state, [:peers, id], peer_data)
 
-      {peer_data, state} = pop_in(state, [:pending_peers, id])
-      state = put_in(state, [:peers, id], peer_data)
-
-      {:reply, :ok, state}
-    end
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -120,7 +113,7 @@ defmodule Nexus.Room do
         is_map_key(state.peers, id) ->
           {peer_data, state} = pop_in(state, [:peers, id])
           :ok = PeerChannel.close(peer_data.channel)
-          Peer.peer_removed(id)
+          broadcast({:peer_removed, id}, state)
 
           state
       end
@@ -129,4 +122,10 @@ defmodule Nexus.Room do
   end
 
   defp generate_id, do: 5 |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
+
+  defp broadcast(msg, state) do
+    Map.keys(state.peers)
+    |> Stream.concat(Map.keys(state.pending_peers))
+    |> Enum.each(&Peer.notify(&1, msg))
+  end
 end

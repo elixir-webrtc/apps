@@ -43,7 +43,7 @@ async function createPeerConnection() {
   pc.onconnectionstatechange = () => {
     console.log('Connection state change: ' + pc.connectionState);
     if (pc.connectionState == 'failed') {
-      window.location.reload();
+      pc.restartIce();
     }
   };
   pc.onicecandidate = (event) => {
