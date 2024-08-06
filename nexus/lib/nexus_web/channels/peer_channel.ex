@@ -6,6 +6,7 @@ defmodule NexusWeb.PeerChannel do
   require Logger
 
   alias Nexus.{Peer, Room}
+  alias NexusWeb.Presence
 
   @spec send_offer(GenServer.server(), String.t()) :: :ok
   def send_offer(channel, offer) do
@@ -31,9 +32,12 @@ defmodule NexusWeb.PeerChannel do
   @impl true
   def join("peer:signalling", _payload, socket) do
     pid = self()
-    {:ok, id} = Room.add_peer(pid)
+    send(pid, :after_join)
 
-    {:ok, assign(socket, :peer, id)}
+    case Room.add_peer(pid) do
+      {:ok, id} -> {:ok, assign(socket, :peer, id)}
+      {:error, _reason} = error -> error
+    end
   end
 
   @impl true
@@ -64,6 +68,13 @@ defmodule NexusWeb.PeerChannel do
   @impl true
   def handle_cast({:candidate, candidate}, socket) do
     push(socket, "ice_candidate", %{"body" => candidate})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info(:after_join, socket) do
+    {:ok, _ref} = Presence.track(socket, socket.assigns.peer, %{})
+    push(socket, "presence_state", Presence.list(socket))
     {:noreply, socket}
   end
 end

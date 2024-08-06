@@ -1,9 +1,9 @@
-import { connectChat } from './chat.js';
-import { Socket } from 'phoenix';
+import { Socket, Presence } from 'phoenix';
 
 const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const localVideoPlayer = document.getElementById('videoplayer-local');
 const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
+const peerCount = document.getElementById('viewercount');
 
 let localStream = undefined;
 let channel = undefined;
@@ -21,18 +21,15 @@ async function createPeerConnection() {
       const videoPlayer = document.createElement('video');
       videoPlayer.srcObject = event.streams[0];
       videoPlayer.autoplay = true;
-      videoPlayer.classList.add(
-        'm-auto',
-        'rounded-xl',
-        'max-h-full',
-        'max-w-full'
-      );
+      videoPlayer.className = 'rounded-xl w-full h-full object-cover';
 
       videoPlayerWrapper.appendChild(videoPlayer);
+      updateVideoGrid();
 
       event.track.onended = (_) => {
         console.log('Track ended: ' + trackId);
         videoPlayerWrapper.removeChild(videoPlayer);
+        updateVideoGrid();
       };
     } else {
       // Audio tracks are associated with the stream (`event.streams[0]`) and require no separate actions
@@ -42,8 +39,13 @@ async function createPeerConnection() {
 
   pc.onicegatheringstatechange = () =>
     console.log('Gathering state change: ' + pc.iceGatheringState);
-  pc.onconnectionstatechange = () =>
+
+  pc.onconnectionstatechange = () => {
     console.log('Connection state change: ' + pc.connectionState);
+    if (pc.connectionState == 'failed') {
+      pc.restartIce();
+    }
+  };
   pc.onicecandidate = (event) => {
     if (event.candidate == null) {
       console.log('Gathering candidates complete');
@@ -113,14 +115,54 @@ async function joinChannel() {
     pc.addIceCandidate(candidate);
   });
 
-  channel.join();
-  console.log('Joined channel peer:signalling');
+  const presence = new Presence(channel);
+  presence.onSync(() => {
+    peerCount.innerText = presence.list().length;
+  });
+
+  channel
+    .join()
+    .receive('ok', (_) => console.log('Joined channel peer:signalling'))
+    .receive('error', (resp) => {
+      console.error('Unable to join the room:', resp);
+      socket.disconnect();
+
+      videoPlayerWrapper.removeChild(localVideoPlayer);
+      console.log(`Closing stream with id: ${localStream.id}`);
+      localStream.getTracks().forEach((track) => track.stop());
+      localStream = undefined;
+
+      const errorNode = document.getElementById('join-error-message');
+      errorNode.innerText = 'Unable to join the room';
+      if (resp == 'peer_limit_reached') {
+        errorNode.innerText +=
+          ': Peer limit reached. Try again in a few minutes';
+      }
+      errorNode.classList.remove('hidden');
+    });
+}
+
+function updateVideoGrid() {
+  const videoCount = videoPlayerWrapper.children.length;
+
+  let columns;
+  if (videoCount <= 1) {
+    columns = 'grid-cols-1';
+  } else if (videoCount <= 4) {
+    columns = 'grid-cols-2';
+  } else if (videoCount <= 9) {
+    columns = 'grid-cols-3';
+  } else if (videoCount <= 16) {
+    columns = 'grid-cols-4';
+  } else {
+    columns = 'grid-cols-5';
+  }
+
+  videoPlayerWrapper.className = `w-full h-full grid gap-2 p-2 auto-rows-fr ${columns}`;
 }
 
 export const Home = {
   async mounted() {
-    connectChat();
-
     await createPeerConnection();
     await setupLocalMedia();
     joinChannel();

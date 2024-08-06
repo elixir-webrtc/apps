@@ -16,33 +16,38 @@ defmodule Nexus.Peer do
   alias Nexus.Room
   alias NexusWeb.PeerChannel
 
-  defmodule State do
-    @moduledoc false
+  @type id :: String.t()
 
-    use Bunch.Access
+  @type tracks_spec :: %{video: String.t() | nil, audio: String.t() | nil}
+  @type outbound_tracks_spec :: %{
+          stream: String.t(),
+          video: String.t() | nil,
+          audio: String.t() | nil,
+          transceivers: tracks_spec(),
+          subscribed?: boolean()
+        }
+  @type peer_tracks_spec :: %{
+          stream: String.t(),
+          video: String.t() | nil,
+          audio: String.t() | nil,
+          transceivers: tracks_spec(),
+          pc: pid()
+        }
 
-    @type stream_spec :: %{stream: String.t(), video: String.t() | nil, audio: String.t() | nil}
-
-    @type t :: %__MODULE__{
-            id: String.t(),
-            channel: pid(),
-            pc: pid(),
-            inbound_tracks: %{video: String.t() | nil, audio: String.t() | nil},
-            outbound_tracks: %{(id :: String.t()) => stream_spec()},
-            peer_tracks: %{(id :: String.t()) => stream_spec()},
-            notification_queue: [term()]
-          }
-
-    @enforce_keys [:id, :channel, :pc]
-
-    defstruct @enforce_keys ++
-                [
-                  inbound_tracks: %{video: nil, audio: nil},
-                  outbound_tracks: %{},
-                  peer_tracks: %{},
-                  notification_queue: []
-                ]
-  end
+  @type state :: %{
+          id: id(),
+          channel: pid(),
+          pc: pid(),
+          # Tracks streamed from the browser to the peer
+          inbound_tracks: tracks_spec(),
+          # Tracks streamed from the peer to the browser
+          outbound_tracks: %{id() => outbound_tracks_spec()},
+          # Tracks of other peers which are subscribed to us
+          # We forward the media received on `inbound_tracks` to these tracks
+          peer_tracks: %{id() => peer_tracks_spec()},
+          # Peers that will be added/removed after the current renegotiation completes
+          pending_peers: MapSet.t(id() | {:removed, id()})
+        }
 
   @audio_codecs [
     %RTPCodecParameters{
@@ -56,7 +61,7 @@ defmodule Nexus.Peer do
   @video_codecs [
     %RTPCodecParameters{
       payload_type: 96,
-      mime_type: "video/H264",
+      mime_type: "video/VP8",
       clock_rate: 90_000
     }
   ]
@@ -66,8 +71,6 @@ defmodule Nexus.Peer do
     audio_codecs: @audio_codecs,
     video_codecs: @video_codecs
   ]
-
-  @type id :: String.t()
 
   @spec start_link(term(), term()) :: GenServer.on_start()
   def start_link(args, opts) do
@@ -84,14 +87,19 @@ defmodule Nexus.Peer do
     GenServer.call(registry_id(id), {:add_ice_candidate, body})
   end
 
-  @spec send_pli(id()) :: :ok
-  def send_pli(id) do
-    GenServer.cast(registry_id(id), :send_pli)
+  @spec add_subscriber(id(), id(), peer_tracks_spec()) :: :ok
+  def add_subscriber(id, peer, peer_tracks_spec) do
+    GenServer.cast(registry_id(id), {:add_subscriber, peer, peer_tracks_spec})
+  end
+
+  @spec request_keyframe(id()) :: :ok
+  def request_keyframe(id) do
+    GenServer.cast(registry_id(id), :request_keyframe)
   end
 
   @spec notify(id(), term()) :: :ok
-  def notify(id, noti) do
-    GenServer.cast(registry_id(id), {:notification, noti})
+  def notify(id, msg) do
+    GenServer.cast(registry_id(id), msg)
   end
 
   @spec registry_id(id()) :: term()
@@ -106,10 +114,16 @@ defmodule Nexus.Peer do
     Process.monitor(pc)
     Logger.debug("Starting peer connection #{inspect(pc)}")
 
-    state = %State{
+    Process.link(channel)
+
+    state = %{
       id: id,
       channel: channel,
-      pc: pc
+      pc: pc,
+      inbound_tracks: %{video: nil, audio: nil},
+      outbound_tracks: %{},
+      peer_tracks: %{},
+      pending_peers: MapSet.new()
     }
 
     {:ok, state, {:continue, {:initial_offer, peer_ids}}}
@@ -134,7 +148,9 @@ defmodule Nexus.Peer do
     state =
       case PeerConnection.set_remote_description(pc, answer) do
         :ok ->
-          send_notifications(state)
+          state
+          |> subscribe_to_new_tracks()
+          |> handle_pending_peers()
 
         {:error, reason} ->
           Logger.warning("Unable to apply SDP answer for #{state.id}: #{inspect(reason)}")
@@ -145,19 +161,19 @@ defmodule Nexus.Peer do
   end
 
   @impl true
-  def handle_call({:add_ice_candidate, body}, _from, state) do
+  def handle_call({:add_ice_candidate, body}, _from, %{pc: pc} = state) do
     candidate =
       body
       |> Jason.decode!()
       |> ICECandidate.from_json()
 
-    :ok = PeerConnection.add_ice_candidate(state.pc, candidate)
+    :ok = PeerConnection.add_ice_candidate(pc, candidate)
 
     {:reply, :ok, state}
   end
 
   @impl true
-  def handle_cast(:send_pli, %{pc: pc} = state) do
+  def handle_cast(:request_keyframe, %{pc: pc} = state) do
     inbound_video_track_id = state.inbound_tracks.video
 
     unless is_nil(inbound_video_track_id) do
@@ -168,39 +184,43 @@ defmodule Nexus.Peer do
   end
 
   @impl true
-  def handle_cast({:notification, {:subscribe, peer, tracks}}, state) do
+  def handle_cast({:add_subscriber, peer, spec}, state) do
     Logger.debug("Peer #{state.id} received subscribe request from peer #{peer}")
 
-    {:noreply, put_in(state, [:peer_tracks, peer], tracks)}
+    {:noreply, put_in(state.peer_tracks[peer], spec)}
   end
 
   @impl true
-  def handle_cast({:notification, {:peer_added, peer}}, %{pc: pc} = state) do
-    Logger.debug("Peer #{state.id} preparing to receive media from #{peer}")
-
-    tracks = add_outbound_track_pair(pc)
-
-    state =
-      state
-      |> send_offer()
-      |> enqueue_notification(peer, {:subscribe, state.id, Map.put(tracks, :pc, pc)})
-      |> put_in([:outbound_tracks, peer], tracks)
-
+  def handle_cast({:peer_added, id}, %{id: id} = state) do
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast({:notification, {:peer_removed, peer}}, %{pc: pc} = state) do
-    Logger.debug("Peer #{state.id} removing outbound tracks corresponding to peer #{peer}")
-    {_, state} = pop_in(state, [:peer_tracks, peer])
-    {spec, state} = pop_in(state, [:outbound_tracks, peer])
+  def handle_cast({:peer_added, peer}, %{pc: pc} = state) do
+    if PeerConnection.get_signaling_state(pc) == :have_local_offer do
+      Logger.debug("Peer #{state.id} scheduled adding of #{peer} after receiving SDP answer")
+      pending_peers = MapSet.put(state.pending_peers, peer)
 
-    :ok = PeerConnection.stop_transceiver(pc, spec.transceivers.video)
-    :ok = PeerConnection.stop_transceiver(pc, spec.transceivers.audio)
+      {:noreply, %{state | pending_peers: pending_peers}}
+    else
+      {:noreply, state |> add_peer(peer) |> send_offer()}
+    end
+  end
 
-    state = send_offer(state)
+  @impl true
+  def handle_cast({:peer_removed, peer}, %{pc: pc} = state) do
+    if PeerConnection.get_signaling_state(pc) == :have_local_offer do
+      Logger.debug("Peer #{state.id} scheduled removal of #{peer} after receiving SDP answer")
 
-    {:noreply, state}
+      pending_peers =
+        if MapSet.member?(state.pending_peers, peer),
+          do: MapSet.delete(state.pending_peers, peer),
+          else: MapSet.put(state.pending_peers, {:removed, peer})
+
+      {:noreply, %{state | pending_peers: pending_peers}}
+    else
+      {:noreply, state |> remove_peer(peer) |> send_offer()}
+    end
   end
 
   @impl true
@@ -218,16 +238,15 @@ defmodule Nexus.Peer do
   @impl true
   def handle_info({:ex_webrtc, pc, {:connection_state_change, :connected}}, %{pc: pc} = state) do
     Logger.debug("Peer #{state.id} connected")
+    :ok = Room.mark_ready(state.id)
 
-    case Room.mark_ready(state.id, pc, state.outbound_tracks) do
-      :ok ->
-        state = send_notifications(state)
-        {:noreply, state}
+    {:noreply, state}
+  end
 
-      {:peer_mismatch, _peer_ids} ->
-        Logger.warning("Stopping peer #{state.id} because of state mismatch")
-        {:stop, {:shutdown, :peer_mismatch}, state}
-    end
+  @impl true
+  def handle_info({:ex_webrtc, pc, {:connection_state_change, :failed}}, %{pc: pc} = state) do
+    Logger.warning("Stopping peer #{state.id} because ICE connection changed state to `failed`")
+    {:stop, {:shutdown, :ice_connection_failed}, state}
   end
 
   @impl true
@@ -243,8 +262,14 @@ defmodule Nexus.Peer do
   @impl true
   def handle_info({:ex_webrtc, pc, {:rtcp, packets}}, %{pc: pc} = state) do
     Enum.each(packets, fn
-      %ExRTCP.Packet.PayloadFeedback.PLI{} -> Room.broadcast_pli()
-      _other -> :noop
+      {track_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
+        {peer_id, _} =
+          Enum.find(state.outbound_tracks, {nil, nil}, fn {_, spec} -> spec.video == track_id end)
+
+        unless is_nil(peer_id), do: request_keyframe(peer_id)
+
+      _other ->
+        :noop
     end)
 
     {:noreply, state}
@@ -254,7 +279,7 @@ defmodule Nexus.Peer do
   def handle_info({:ex_webrtc, pc, {:track, track}}, %{pc: pc} = state) do
     Logger.debug("Peer #{state.id} added remote #{track.kind} track #{track.id}")
 
-    state = put_in(state, [:inbound_tracks, track.kind], track.id)
+    state = put_in(state.inbound_tracks[track.kind], track.id)
 
     {:noreply, state}
   end
@@ -298,19 +323,65 @@ defmodule Nexus.Peer do
 
     transceivers = %{video: video_tr.id, audio: audio_tr.id}
 
-    %{stream: stream_id, video: vt.id, audio: at.id, transceivers: transceivers}
+    %{
+      stream: stream_id,
+      video: vt.id,
+      audio: at.id,
+      transceivers: transceivers,
+      subscribed?: false
+    }
   end
 
-  defp enqueue_notification(state, dest, notification) do
-    Map.update!(state, :notification_queue, &[{dest, notification} | &1])
+  defp add_peer(state, peer) do
+    Logger.debug("Peer #{state.id} preparing to receive media from #{peer}")
+    tracks = add_outbound_track_pair(state.pc)
+
+    put_in(state.outbound_tracks[peer], tracks)
   end
 
-  defp send_notifications(state) do
-    state.notification_queue
-    |> Enum.reverse()
-    |> Enum.each(fn {dest, notification} -> notify(dest, notification) end)
+  defp remove_peer(state, peer) do
+    Logger.debug("Peer #{state.id} removing outbound tracks corresponding to peer #{peer}")
 
-    %{state | notification_queue: []}
+    {_, state} = pop_in(state.peer_tracks[peer])
+    {spec, state} = pop_in(state.outbound_tracks[peer])
+
+    :ok = PeerConnection.stop_transceiver(state.pc, spec.transceivers.video)
+    :ok = PeerConnection.stop_transceiver(state.pc, spec.transceivers.audio)
+
+    state
+  end
+
+  defp subscribe_to_new_tracks(state) do
+    outbound_tracks =
+      state.outbound_tracks
+      |> Map.new(fn {peer, spec} ->
+        unless spec.subscribed? do
+          spec
+          |> Map.delete(:subscribed?)
+          |> Map.put(:pc, state.pc)
+          |> then(&add_subscriber(peer, state.id, &1))
+        end
+
+        {peer, %{spec | subscribed?: true}}
+      end)
+
+    %{state | outbound_tracks: outbound_tracks}
+  end
+
+  defp handle_pending_peers(state) do
+    if Enum.empty?(state.pending_peers) do
+      state
+    else
+      Enum.reduce(state.pending_peers, state, fn
+        {:removed, peer}, state ->
+          remove_peer(state, peer)
+
+        peer, state ->
+          add_peer(state, peer)
+      end)
+      |> send_offer()
+      |> Map.put(:pending_peers, MapSet.new())
+    end
   end
 
   defp send_offer(%{pc: pc} = state) do
