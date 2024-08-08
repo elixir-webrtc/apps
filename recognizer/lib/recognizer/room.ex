@@ -6,7 +6,7 @@ defmodule Recognizer.Room do
   require Logger
 
   alias ExWebRTC.{ICECandidate, PeerConnection, RTPCodecParameters, SessionDescription}
-  alias ExWebRTC.RTP.VP8.Depayloader
+  alias ExWebRTC.RTP.Depayloader
 
   @max_session_time_s Application.compile_env!(:recognizer, :max_session_time_s)
   @session_time_timer_interval_ms 1_000
@@ -49,7 +49,7 @@ defmodule Recognizer.Room do
        channel: nil,
        task: nil,
        video_track: nil,
-       video_depayloader: Depayloader.new(),
+       video_depayloader: @video_codecs |> hd() |> Depayloader.new(),
        video_decoder: Xav.Decoder.new(:vp8),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
