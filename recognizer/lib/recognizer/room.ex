@@ -42,6 +42,8 @@ defmodule Recognizer.Room do
     Logger.info("Starting room: #{room_id}")
     Process.send_after(self(), :session_time, @session_time_timer_interval_ms)
 
+    {:ok, video_depayloader} = @video_codecs |> hd() |> Depayloader.new()
+
     {:ok,
      %{
        id: room_id,
@@ -49,7 +51,7 @@ defmodule Recognizer.Room do
        channel: nil,
        task: nil,
        video_track: nil,
-       video_depayloader: @video_codecs |> hd() |> Depayloader.new(),
+       video_depayloader: video_depayloader,
        video_decoder: Xav.Decoder.new(:vp8),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
