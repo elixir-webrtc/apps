@@ -39,23 +39,12 @@ jobs:
       with:
         node-version: 22
 
-    - name: Install libsrtp2
-      working-directory: .
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libsrtp2-dev
-
     - name: Install FFmpeg development libraries
       if: ${{ inputs.with-ffmpeg }}
       working-directory: .
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget tar
-        wget ${{ env.FFMPEG_URL }} -O - | tar xJ
-        sudo mv ffmpeg-* /opt/ffmpeg
-        echo "C_INCLUDE_PATH=/opt/ffmpeg/include" >> $GITHUB_ENV
-        echo "LIBRARY_PATH=/opt/ffmpeg/lib" >> $GITHUB_ENV
-        echo "LD_LIBRARY_PATH=/opt/ffmpeg/lib" >> $GITHUB_ENV
+        sudo apt-get install -y libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavdevice-dev
 
     - name: Checkout the code
       uses: actions/checkout@v4

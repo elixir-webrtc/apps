@@ -136,27 +136,21 @@ defmodule Recognizer.Room do
     {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
     state = %{state | video_depayloader: depayloader}
 
-    state =
-      with false <- is_nil(frame),
-           {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
-        tensor = Xav.Frame.to_nx(frame)
+    with true <- is_nil(state.task),
+         false <- is_nil(frame),
+         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
+      tensor = Xav.Frame.to_nx(frame)
+      task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
+      state = %{state | task: task}
+      {:noreply, state}
+    else
+      other when other in [:ok, true, false] ->
+        {:noreply, state}
 
-        if is_nil(state.task) do
-          task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
-          %{state | task: task}
-        else
-          state
-        end
-      else
-        true ->
-          state
-
-        {:error, :no_keyframe} ->
-          Logger.warning("Couldn't decode video frame - missing keyframe!")
-          state
-      end
-
-    {:noreply, state}
+      {:error, :no_keyframe} ->
+        Logger.warning("Couldn't decode video frame - missing keyframe!")
+        {:noreply, state}
+    end
   end
 
   @impl true
