@@ -6,10 +6,11 @@ defmodule Recognizer.Room do
   require Logger
 
   alias ExWebRTC.{ICECandidate, PeerConnection, RTPCodecParameters, SessionDescription}
-  alias ExWebRTC.RTP.Depayloader
+  alias ExWebRTC.RTP.{Depayloader, JitterBuffer}
 
   @max_session_time_s Application.compile_env!(:recognizer, :max_session_time_s)
   @session_time_timer_interval_ms 1_000
+  @jitter_buffer_latency_ms 100
 
   @video_codecs [
     %RTPCodecParameters{
@@ -43,6 +44,7 @@ defmodule Recognizer.Room do
     Process.send_after(self(), :session_time, @session_time_timer_interval_ms)
 
     {:ok, video_depayloader} = @video_codecs |> hd() |> Depayloader.new()
+    {:ok, video_buffer} = JitterBuffer.start_link(latency: @jitter_buffer_latency_ms)
 
     {:ok,
      %{
@@ -53,6 +55,7 @@ defmodule Recognizer.Room do
        video_track: nil,
        video_depayloader: video_depayloader,
        video_decoder: Xav.Decoder.new(:vp8),
+       video_buffer: video_buffer,
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
      }}
@@ -115,6 +118,7 @@ defmodule Recognizer.Room do
   @impl true
   def handle_info({:ex_webrtc, _pc, {:connection_state_change, :connected}}, state) do
     Logger.info("Connection state changed - connected!")
+    JitterBuffer.start_timer(state.video_buffer)
     {:noreply, state}
   end
 
@@ -132,6 +136,15 @@ defmodule Recognizer.Room do
   def handle_info(
         {:ex_webrtc, _pc, {:rtp, track_id, nil, packet}},
         %{video_track: %{id: track_id}} = state
+      ) do
+    JitterBuffer.place_packet(state.video_buffer, packet)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:jitter_buffer, video_buffer, {:packet, packet}},
+        %{video_buffer: video_buffer} = state
       ) do
     {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
     state = %{state | video_depayloader: depayloader}
