@@ -20,5 +20,5 @@ defmodule RecognizerWeb.Gettext do
 
   See the [Gettext Docs](https://hexdocs.pm/gettext) for detailed usage.
   """
-  use Gettext, otp_app: :recognizer
+  use Gettext.Backend, otp_app: :recognizer
 end

@@ -17,7 +17,7 @@ defmodule RecognizerWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  import RecognizerWeb.Gettext
+  use Gettext, backend: RecognizerWeb.Gettext
 
   @doc """
   Renders a modal.
