@@ -9,6 +9,9 @@ const previewPlayer = document.getElementById('previewPlayer');
 const highVideoBitrate = document.getElementById('highVideoBitrate');
 const mediumVideoBitrate = document.getElementById('mediumVideoBitrate');
 const lowVideoBitrate = document.getElementById('lowVideoBitrate');
+const echoCancellation = document.getElementById('echoCancellation');
+const autoGainControl = document.getElementById('autoGainControl');
+const noiseSuppression = document.getElementById('noiseSuppression');
 
 const mediaConstraints = {
   video: {
@@ -40,7 +43,12 @@ async function setupStream() {
       width: { ideal: 1280 },
       height: { ideal: 720 },
     },
-    audio: { deviceId: { exact: audioDevice } },
+    audio: {
+      deviceId: { exact: audioDevice },
+      echoCancellation: echoCancellation.checked,
+      autoGainControl: autoGainControl.checked,
+      noiseSuppression: noiseSuppression.checked,
+    },
   });
 
   console.log(`Obtained stream with id: ${localStream.id}`);
