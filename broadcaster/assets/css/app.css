@@ -30,11 +30,12 @@
 
 /* from https://stackoverflow.com/a/38994837/9620900 */
 /* Hiding scrollbar for Chrome, Safari and Opera */
-#chat-messages::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none;
 }
 
 /* Hiding scrollbar for IE, Edge and Firefox */
+#videoplayer-wrapper,
 #chat-messages {
   scrollbar-width: none;
   /* Firefox */
@@ -42,7 +43,7 @@
   /* IE and Edge */
 }
 
-#chat-input::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none;
 }
 

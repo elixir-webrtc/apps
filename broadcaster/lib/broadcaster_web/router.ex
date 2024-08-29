@@ -49,6 +49,7 @@ defmodule BroadcasterWeb.Router do
       pipe_through :auth
 
       delete "/chat/:id", PageController, :delete_chat_message
+      post "/stream", PageController, :config_stream
     end
   end
 

@@ -12,6 +12,7 @@ const lowVideoBitrate = document.getElementById('lowVideoBitrate');
 const echoCancellation = document.getElementById('echoCancellation');
 const autoGainControl = document.getElementById('autoGainControl');
 const noiseSuppression = document.getElementById('noiseSuppression');
+const saveStreamConfigButton = document.getElementById('save-stream-config');
 
 const mediaConstraints = {
   video: {
@@ -24,6 +25,21 @@ const mediaConstraints = {
 
 let localStream = undefined;
 let pc = undefined;
+
+function setupSaveStreamConfigButton() {
+  saveStreamConfigButton.onclick = async () => {
+    const title = document.getElementById('stream-title').value;
+    const description = document.getElementById('stream-description').value;
+
+    const response = await fetch(`${window.location.origin}/api/admin/stream`, {
+      method: 'POST',
+      body: JSON.stringify({ title: title, description: description }),
+    });
+    if (response.status != 200) {
+      console.warn('Setting stream title and description failed');
+    }
+  };
+}
 
 async function setupStream() {
   if (localStream != undefined) {
@@ -191,6 +207,7 @@ async function run() {
 
 export const Panel = {
   mounted() {
+    setupSaveStreamConfigButton();
     connectChat(true);
     run();
   },
