@@ -43,12 +43,12 @@ async function setupStream() {
       width: { ideal: 1280 },
       height: { ideal: 720 },
     },
-    audio: { 
+    audio: {
       deviceId: { exact: audioDevice },
       echoCancellation: echoCancellation.checked,
       autoGainControl: autoGainControl.checked,
-      noiseSuppression: noiseSuppression.checked
-     },
+      noiseSuppression: noiseSuppression.checked,
+    },
   });
 
   console.log(`Obtained stream with id: ${localStream.id}`);
