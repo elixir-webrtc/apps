@@ -1,13 +1,10 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-4 overflow-y-scroll">
-    <video
-      id="videoplayer"
-      class="rounded-xl max-h-[1080px] w-full bg-black"
-      autoplay
-      controls
-      muted
-    >
-    </video>
+  <div id="videoplayer-wrapper-wrapper" class="w-full h-full gap-2 p-2">
+    <p id="status-message" class="text-brand/80 font-semibold hidden">
+      Waiting for the stream to begin...
+    </p>
+    <div id="videoplayer-wrapper" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
+    </div>
     <span class="font-bold text-xl"><%= @title %></span>
     <span class={"#{if @description != "", do: "bg-neutral-200	p-4 rounded-lg", else: ""}"}>
       <%= @description %>
@@ -49,12 +46,13 @@
     <div class="">
       <label for="video-quality" class="font-semibold text-brand/100">Video quality</label>
       <select
-        disabled
         name="video-quality"
         id="video-quality"
         class="border-brand/50 text-brand/90 rounded-xl"
       >
-        <option>Disabled</option>
+        <option value="h" selected>High</option>
+        <option value="m">Medium</option>
+        <option value="l">Low</option>
       </select>
     </div>
   </div>

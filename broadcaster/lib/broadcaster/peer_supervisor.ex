@@ -38,8 +38,9 @@ defmodule Broadcaster.PeerSupervisor do
   @spec start_whip(String.t()) :: {:ok, pid(), String.t(), String.t()} | {:error, term()}
   def start_whip(offer_sdp), do: start_pc(offer_sdp, :recvonly)
 
-  @spec start_whep(String.t()) :: {:ok, pid(), String.t(), String.t()} | {:error, term()}
-  def start_whep(offer_sdp), do: start_pc(offer_sdp, :sendonly)
+  @spec start_whep(String.t(), String.t()) ::
+          {:ok, pid(), String.t(), String.t()} | {:error, term()}
+  def start_whep(offer_sdp, stream_id), do: start_pc(offer_sdp, :sendonly, stream_id <> "-")
 
   @spec fetch_pid(String.t()) :: {:ok, pid()} | :error
   def fetch_pid(id) do
@@ -59,9 +60,9 @@ defmodule Broadcaster.PeerSupervisor do
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
-  defp start_pc(offer_sdp, direction) do
+  defp start_pc(offer_sdp, direction, pc_id_base \\ "") do
     offer = %SessionDescription{type: :offer, sdp: offer_sdp}
-    pc_id = generate_pc_id()
+    pc_id = pc_id_base <> generate_pc_id()
     {:ok, pc} = spawn_peer_connection(pc_id)
 
     Logger.info("Received offer for #{inspect(pc)}")

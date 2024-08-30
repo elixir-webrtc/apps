@@ -15,7 +15,7 @@ defmodule BroadcasterWeb.MediaController do
     with :ok <- authenticate(conn),
          {:ok, offer_sdp, conn} <- read_body(conn),
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whip(offer_sdp),
-         :ok <- Forwarder.connect_input(pc) do
+         :ok <- Forwarder.connect_input(pc, pc_id) do
       conn
       |> put_resp_header("location", ~p"/api/resource/#{pc_id}")
       |> put_resp_content_type("application/sdp")
@@ -26,10 +26,12 @@ defmodule BroadcasterWeb.MediaController do
     |> send_resp()
   end
 
-  def whep(conn, _params) do
+  def whep(conn, params) do
+    stream_id = params["streamId"] || "default"
+
     with {:ok, offer_sdp, conn} <- read_body(conn),
-         {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
-         :ok <- Forwarder.connect_output(pc) do
+         {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp, stream_id),
+         :ok <- Forwarder.connect_output(pc, stream_id) do
       uri = ~p"/api/resource/#{pc_id}"
 
       conn
@@ -72,15 +74,15 @@ defmodule BroadcasterWeb.MediaController do
   end
 
   def event_stream(conn, %{"resource_id" => resource_id}) do
-    case PeerSupervisor.fetch_pid(resource_id) do
-      {:ok, _pid} ->
-        conn
-        |> put_resp_header("content-type", "text/event-stream")
-        |> put_resp_header("connection", "keep-alive")
-        |> put_resp_header("cache-control", "no-cache")
-        |> send_chunked(200)
-        |> update_layers()
-
+    with {:ok, _pid} <- PeerSupervisor.fetch_pid(resource_id),
+         [stream_id, _pc_id] <- String.split(resource_id, "-") do
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> put_resp_header("connection", "keep-alive")
+      |> put_resp_header("cache-control", "no-cache")
+      |> send_chunked(200)
+      |> update_layers(stream_id)
+    else
       _other ->
         send_resp(conn, 400, "Bad request")
     end
@@ -120,15 +122,20 @@ defmodule BroadcasterWeb.MediaController do
     end
   end
 
-  defp update_layers(conn) do
-    layers = Forwarder.get_layers()
-    data = Jason.encode!(%{layers: layers})
-    chunk(conn, ~s/data: #{data}\n\n/)
+  defp update_layers(conn, stream_id) do
+    case Forwarder.get_layers(stream_id) do
+      {:ok, layers} ->
+        data = Jason.encode!(%{layers: layers})
+        chunk(conn, ~s/data: #{data}\n\n/)
 
-    Process.send_after(self(), :layers, 2000)
+        Process.send_after(self(), :layers, 2000)
 
-    receive do
-      :layers -> update_layers(conn)
+        receive do
+          :layers -> update_layers(conn, stream_id)
+        end
+
+      :error ->
+        conn
     end
   end
 end

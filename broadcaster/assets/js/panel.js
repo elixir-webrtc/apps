@@ -1,3 +1,5 @@
+import { Socket } from 'phoenix';
+
 import { connectChat } from './chat.js';
 
 const audioDevices = document.getElementById('audioDevices');
@@ -207,8 +209,13 @@ async function run() {
 
 export const Panel = {
   mounted() {
+    const socket = new Socket('/socket', {
+      params: { token: window.userToken },
+    });
+    socket.connect();
+
     setupSaveStreamConfigButton();
-    connectChat(true);
+    connectChat(socket, true);
     run();
   },
 };

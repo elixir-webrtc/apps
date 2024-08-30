@@ -3,7 +3,23 @@ defmodule BroadcasterWeb.StreamChannel do
 
   use BroadcasterWeb, :channel
 
-  alias BroadcasterWeb.Presence
+  alias BroadcasterWeb.{Endpoint, Presence}
+
+  @spec stream_added(String.t()) :: :ok
+  def stream_added(id) do
+    Endpoint.broadcast!("stream:signalling", "stream_added", %{id: id})
+  end
+
+  @spec stream_removed(String.t()) :: :ok
+  def stream_removed(id) do
+    Endpoint.broadcast!("stream:signalling", "stream_removed", %{id: id})
+  end
+
+  @impl true
+  def join("stream:signalling", _, socket) do
+    msg = %{streams: Broadcaster.Forwarder.streams()}
+    {:ok, msg, socket}
+  end
 
   @impl true
   def join("stream:chat", _, socket) do
