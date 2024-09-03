@@ -13,6 +13,7 @@ const statusMessage = document.getElementById('status-message');
 const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const whepEndpointBase = `${window.location.origin}/api/whep`;
 const streamsData = new Map();
+let defaultLayer = 'h';
 
 async function connectMedia(socket) {
   const channel = socket.channel('stream:signalling');
@@ -83,6 +84,7 @@ async function connectStream(streamId) {
       videoPlayerWrapper.appendChild(videoPlayer);
       streamData.videoPlayer = videoPlayer;
       updateVideoGrid();
+      changeLayer(streamId, defaultLayer);
     } else {
       // Audio tracks are associated with the stream (`event.streams[0]`) and require no separate actions
       console.log(`[${streamId}]: Audio track added`);
@@ -182,7 +184,16 @@ async function sendCandidate(candidate, patchEndpoint, streamId) {
   }
 }
 
-async function changeLayer(layer) {
+async function setDefaultLayer(layer) {
+  if (defaultLayer !== layer) {
+    defaultLayer = layer;
+    for (const streamId of streamsData.keys()) {
+      changeLayer(streamId, layer);
+    }
+  }
+}
+
+async function changeLayer(streamId, layer) {
   // According to the spec, we should gather the info about available layers from the `layers` event
   // emitted in the SSE stream tied to *one* given WHEP session.
   //
@@ -194,21 +205,18 @@ async function changeLayer(layer) {
   // and WHEP players other than this site are free to use them.
   //
   // For more info refer to https://www.ietf.org/archive/id/draft-ietf-wish-whep-01.html#section-4.6.2
-  for (const [
-    streamId,
-    { patchEndpoint: patchEndpoint },
-  ] of streamsData.entries()) {
-    if (patchEndpoint) {
-      const response = await fetch(`${patchEndpoint}/layer`, {
-        method: 'POST',
-        cache: 'no-cache',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encodingId: layer }),
-      });
+  const streamData = streamsData.get(streamId);
 
-      if (response.status != 200) {
-        console.warn(`[${streamId}]: Changing layer failed`, response);
-      }
+  if (streamData && streamData.patchEndpoint) {
+    const response = await fetch(`${streamData.patchEndpoint}/layer`, {
+      method: 'POST',
+      cache: 'no-cache',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ encodingId: layer }),
+    });
+
+    if (response.status != 200) {
+      console.warn(`[${streamId}]: Changing layer failed`, response);
     }
   }
 }
@@ -276,7 +284,7 @@ export const Home = {
     connectMedia(socket);
     connectChat(socket, false);
 
-    videoQuality.onchange = () => changeLayer(videoQuality.value);
+    videoQuality.onchange = () => setDefaultLayer(videoQuality.value);
 
     chatToggler.onclick = () => toggleBox(chat, settings);
     settingsToggler.onclick = () => toggleBox(settings, chat);
