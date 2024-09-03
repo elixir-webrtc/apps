@@ -77,12 +77,13 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call({:get_layers, input_id}, _from, state) do
-    case find_input(input_id, state) do
-      {:ok, _pc, input} ->
-        {:reply, {:ok, input.available_layers}, state}
-
-      {:error, :not_found} ->
-        {:reply, :error, state}
+    # FIXME: this may expand "default" to different inputs!
+    #        (maps have no inherent order)
+    with {:ok, input_id} <- expand_default_input_id(input_id, state),
+         {:ok, _pc, input} <- find_input(input_id, state) do
+      {:reply, {:ok, input.available_layers}, state}
+    else
+      {:error, _reason} -> {:reply, :error, state}
     end
   end
 

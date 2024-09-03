@@ -147,7 +147,7 @@ async function removeStream(streamId) {
   const streamData = streamsData.get(streamId);
   streamsData.delete(streamId);
 
-  if (streamData && streamData.videoPlayer) {
+  if (streamData) {
     streamData.pc.close();
 
     if (streamData.videoPlayer) {
