@@ -45,6 +45,7 @@ defmodule Broadcaster.Forwarder do
   @impl true
   def init(_arg) do
     state = %{
+      default_input: nil,
       inputs: %{},
       pending_outputs: %{},
       outputs: %{}
@@ -77,8 +78,6 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call({:get_layers, input_id}, _from, state) do
-    # FIXME: this may expand "default" to different inputs!
-    #        (maps have no inherent order)
     with {:ok, input_id} <- expand_default_input_id(input_id, state),
          {:ok, _pc, input} <- find_input(input_id, state) do
       {:reply, {:ok, input.available_layers}, state}
@@ -102,6 +101,11 @@ defmodule Broadcaster.Forwarder do
       audio: audio_track.id,
       available_layers: video_track.rids
     }
+
+    state =
+      if is_nil(state.default_input),
+        do: %{state | default_input: id},
+        else: state
 
     state = put_in(state, [:inputs, pc], input)
     default_layer = default_layer(input)
@@ -215,6 +219,18 @@ defmodule Broadcaster.Forwarder do
   def handle_info({:DOWN, _ref, :process, pid, reason}, state)
       when is_map_key(state.inputs, pid) do
     {input, state} = pop_in(state, [:inputs, pid])
+
+    state =
+      cond do
+        map_size(state.inputs) == 0 ->
+          %{state | default_input: nil}
+
+        input.id == state.default_input ->
+          %{state | default_input: state.inputs |> Map.values() |> hd() |> then(& &1.id)}
+
+        true ->
+          state
+      end
 
     Logger.info(
       "Input #{input.id}: process #{inspect(pid)} exited with reason: #{inspect(reason)}"
@@ -332,12 +348,8 @@ defmodule Broadcaster.Forwarder do
   defp default_layer(%{available_layers: nil}), do: nil
   defp default_layer(%{available_layers: [first | _]}), do: first
 
-  defp expand_default_input_id("default", %{inputs: inputs}) when map_size(inputs) > 0 do
-    input_id = inputs |> Map.values() |> hd() |> then(& &1.id)
-    {:ok, input_id}
-  end
-
-  defp expand_default_input_id("default", _state), do: {:error, :no_default_input}
+  defp expand_default_input_id("default", %{default_input: nil}), do: {:error, :no_default_input}
+  defp expand_default_input_id("default", %{default_input: id}), do: {:ok, id}
   defp expand_default_input_id(input_id, _state), do: {:ok, input_id}
 
   defp find_input(id, %{inputs: inputs}) do
