@@ -148,14 +148,14 @@ defmodule Broadcaster.Forwarder do
 
     state =
       with {:ok, input_id} <- expand_default_input_id(input_id, state),
-           {:ok, input_pc, input} <- find_input(input_id, state) do
-        do_connect_output(pc, input_pc, input, state)
+           {:ok, _input_pc, input} <- find_input(input_id, state) do
+        do_connect_output(pc, input, state)
       else
         # Output didn't specify a stream ID (wants the default one),
         # but no-one is streaming at the moment:
         # we'll accept the connection and tie the first added stream to it
         {:error, :no_default_input} ->
-          do_connect_output(pc, nil, nil, state)
+          do_connect_output(pc, nil, state)
 
         # Output specified a stream ID, but it doesn't exist
         {:error, :not_found} ->
@@ -262,7 +262,7 @@ defmodule Broadcaster.Forwarder do
     {:noreply, state}
   end
 
-  defp do_connect_output(pc, input_pc, input, state) do
+  defp do_connect_output(pc, input, state) do
     input_id = input[:id] || :default
 
     layer = default_layer(input)
@@ -279,13 +279,10 @@ defmodule Broadcaster.Forwarder do
       pending_layer: layer
     }
 
-    unless is_nil(input_pc) do
-      # FIXME: this can fail because the higher layer hasn't been established yet
-      #        and all we have is layer "l"
-      :ok = PeerConnection.send_pli(input_pc, input.video, layer)
-    end
-
     Logger.info("Output #{inspect(pc)} has successfully connected to input #{input_id}")
+
+    # We don't send a PLI on behalf of the newly connected output.
+    # Once the output sends a PLI to us, we'll forward it.
 
     put_in(state, [:outputs, pc], output)
   end
