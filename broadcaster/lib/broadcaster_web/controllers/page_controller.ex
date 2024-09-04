@@ -2,10 +2,13 @@ defmodule BroadcasterWeb.PageController do
   use BroadcasterWeb, :controller
 
   def home(conn, _params) do
+    title = Application.get_env(:broadcaster, :title, "") |> to_html()
+    description = Application.get_env(:broadcaster, :description, "") |> to_html()
+
     render(conn, :home,
       page_title: "Home",
-      title: Application.get_env(:broadcaster, :title, ""),
-      description: Application.get_env(:broadcaster, :description, "")
+      title: title,
+      description: description
     )
   end
 
@@ -24,5 +27,12 @@ defmodule BroadcasterWeb.PageController do
     Application.put_env(:broadcaster, :title, title)
     Application.put_env(:broadcaster, :description, description)
     send_resp(conn, 200, "")
+  end
+
+  defp to_html(markdown) do
+    markdown
+    |> String.trim()
+    |> Earmark.as_html!()
+    |> Phoenix.HTML.raw()
   end
 end

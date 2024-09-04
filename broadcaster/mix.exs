@@ -61,6 +61,7 @@ defmodule Broadcaster.MixProject do
       {:corsica, "~> 2.1.3"},
       {:ex_webrtc, "~> 0.4.0"},
       {:ex_webrtc_dashboard, "~> 0.4.0"},
+      {:earmark, "~> 1.4"},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
