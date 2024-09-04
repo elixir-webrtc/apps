@@ -1,17 +1,13 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-4 overflow-y-scroll">
-    <video
-      id="videoplayer"
-      class="rounded-xl max-h-[1080px] w-full bg-black"
-      autoplay
-      controls
-      muted
-    >
+  <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-3 overflow-y-scroll">
+    <video id="videoplayer" class="rounded-xl max-h-full w-full bg-black" autoplay controls muted>
     </video>
-    <span class="font-bold text-xl"><%= @title %></span>
-    <span class={"#{if @description != "", do: "bg-neutral-200	p-4 rounded-lg", else: ""}"}>
-      <%= @description %>
-    </span>
+    <div class="flex flex-col gap-3">
+      <span class="font-bold text-xl"><%= @title %></span>
+      <span class={"#{if @description != "", do: "bg-neutral-200 p-4 rounded-lg text-wrap break-words", else: ""}"}>
+        <%= @description %>
+      </span>
+    </div>
   </div>
   <div
     id="chat"
