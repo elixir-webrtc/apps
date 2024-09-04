@@ -33,6 +33,5 @@ defmodule BroadcasterWeb.PageController do
     markdown
     |> String.trim()
     |> Earmark.as_html!()
-    |> Phoenix.HTML.raw()
   end
 end
