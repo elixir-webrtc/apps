@@ -118,8 +118,8 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
-  // allow for 1 scroll history
-  if (chatMessages.scrollHeight > 2 * chatMessages.clientHeight) {
+  // allow for 3-scroll history
+  if (chatMessages.scrollHeight > 4 * chatMessages.clientHeight) {
     chatMessages.removeChild(chatMessages.children[0]);
   }
 }
