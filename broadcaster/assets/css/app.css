@@ -3,8 +3,8 @@
 @import 'tailwindcss/utilities';
 
 /* This file is for your main application CSS */
-a {
-  @apply underline text-brand/100 hover:text-brand/100;
+#stream-desc a {
+  @apply underline text-brand hover:text-brand;
 }
 
 ul {
