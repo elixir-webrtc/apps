@@ -75,8 +75,8 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
   // Check whether we have already been at the bottom of the chat.
   // If not, we won't scroll down after appending a message.
   const wasAtBottom =
-    chatMessages.scrollHeight - chatMessages.scrollTop ==
-    chatMessages.clientHeight;
+    chatMessages.scrollHeight - chatMessages.clientHeight <=
+    chatMessages.scrollTop + 10;
 
   const chatMessage = document.createElement('div');
   chatMessage.classList.add('chat-message');
