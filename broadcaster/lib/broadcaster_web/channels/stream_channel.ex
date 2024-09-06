@@ -5,6 +5,9 @@ defmodule BroadcasterWeb.StreamChannel do
 
   alias BroadcasterWeb.Presence
 
+  @max_nickname_length 25
+  @max_message_length 500
+
   @impl true
   def join("stream:chat", _, socket) do
     send(self(), :after_join)
@@ -18,6 +21,8 @@ defmodule BroadcasterWeb.StreamChannel do
 
   @impl true
   def handle_in("chat_msg", %{"body" => body}, socket) do
+    body = String.slice(body, 0..(@max_message_length - 1))
+
     msg = %{
       body: body,
       nickname: socket.assigns.nickname,
@@ -54,7 +59,13 @@ defmodule BroadcasterWeb.StreamChannel do
     {:noreply, socket}
   end
 
-  defp register(nickname), do: do_register(String.trim(nickname))
+  defp register(nickname) when byte_size(nickname) <= @max_nickname_length do
+    nickname
+    |> String.trim()
+    |> do_register()
+  end
+
+  defp register(_nickname), do: :error
 
   defp do_register(""), do: :error
 
