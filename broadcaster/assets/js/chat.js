@@ -72,6 +72,12 @@ export async function connectChat(isAdmin) {
 function appendChatMessage(chatMessages, msg, isAdmin) {
   if (msg.nickname == undefined || msg.body == undefined) return;
 
+  // Check whether we have already been at the bottom of the chat.
+  // If not, we won't scroll down after appending a message.
+  const wasAtBottom =
+    chatMessages.scrollHeight - chatMessages.scrollTop ==
+    chatMessages.clientHeight;
+
   const chatMessage = document.createElement('div');
   chatMessage.classList.add('chat-message');
   chatMessage.setAttribute('data-id', msg.id);
@@ -108,8 +114,9 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
 
   chatMessages.appendChild(chatMessage);
 
-  // scroll to the bottom after adding a message
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (wasAtBottom == true) {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
 
   // allow for 1 scroll history
   if (chatMessages.scrollHeight > 2 * chatMessages.clientHeight) {
