@@ -59,13 +59,15 @@ defmodule BroadcasterWeb.StreamChannel do
     {:noreply, socket}
   end
 
-  defp register(nickname) when byte_size(nickname) <= @max_nickname_length do
-    nickname
-    |> String.trim()
-    |> do_register()
+  defp register(nickname) do
+    if String.length(nickname) <= @max_nickname_length do
+      nickname
+      |> String.trim()
+      |> do_register()
+    else
+      :error
+    end
   end
-
-  defp register(_nickname), do: :error
 
   defp do_register(""), do: :error
 
