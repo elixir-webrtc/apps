@@ -29,6 +29,7 @@ defmodule BroadcasterWeb.StreamChannel do
       id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}"
     }
 
+    Broadcaster.ChatHistory.put(msg)
     broadcast!(socket, "chat_msg", msg)
 
     {:noreply, assign(socket, :msg_count, socket.assigns.msg_count + 1)}
@@ -56,6 +57,10 @@ defmodule BroadcasterWeb.StreamChannel do
   def handle_info(:after_join, socket) do
     {:ok, _} = Presence.track(socket, socket.assigns.user_id, %{})
     push(socket, "presence_state", Presence.list(socket))
+
+    Broadcaster.ChatHistory.get()
+    |> Enum.each(fn msg -> :ok = push(socket, "chat_msg", msg) end)
+
     {:noreply, socket}
   end
 

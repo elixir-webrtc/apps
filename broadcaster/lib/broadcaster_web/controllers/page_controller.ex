@@ -17,6 +17,7 @@ defmodule BroadcasterWeb.PageController do
   end
 
   def delete_chat_message(conn, %{"id" => id}) do
+    Broadcaster.ChatHistory.delete(id)
     BroadcasterWeb.Endpoint.broadcast!("stream:chat", "delete_chat_msg", %{id: id})
     send_resp(conn, 200, "")
   end
