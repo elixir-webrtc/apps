@@ -12,11 +12,10 @@ export async function connectChat(isAdmin) {
   socket.connect();
 
   const channel = socket.channel('stream:chat');
-  const presence = new Presence(channel);
+  channel.onError((reason) => console.log('Channel error. Reason: ', reason));
 
-  presence.onSync(() => {
-    viewercount.innerText = presence.list().length;
-  });
+  const presence = new Presence(channel);
+  presence.onSync(() => (viewercount.innerText = presence.list().length));
 
   if (!isAdmin) {
     const send = () => {
@@ -54,6 +53,11 @@ export async function connectChat(isAdmin) {
     };
   }
 
+  channel.on('chat_msg', (msg) =>
+    appendChatMessage(chatMessages, msg, isAdmin)
+  );
+  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
+
   channel
     .join()
     .receive('ok', (resp) => {
@@ -62,11 +66,6 @@ export async function connectChat(isAdmin) {
     .receive('error', (resp) => {
       console.log('Unable to join chat channel', resp);
     });
-
-  channel.on('chat_msg', (msg) =>
-    appendChatMessage(chatMessages, msg, isAdmin)
-  );
-  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
 }
 
 function appendChatMessage(chatMessages, msg, isAdmin) {

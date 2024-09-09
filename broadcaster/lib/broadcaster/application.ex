@@ -23,6 +23,7 @@ defmodule Broadcaster.Application do
       BroadcasterWeb.Presence,
       Broadcaster.PeerSupervisor,
       Broadcaster.Forwarder,
+      Broadcaster.ChatHistory,
       {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
       {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
     ]
