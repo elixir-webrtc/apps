@@ -19,7 +19,11 @@ defmodule BroadcasterWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-  plug Corsica, origins: "*"
+  plug Corsica,
+    origins: "*",
+    allow_headers: :all,
+    allow_methods: :all,
+    expose_headers: BroadcasterWeb.Router.cors_expose_headers()
 
   # Serve at "/" the static files from "priv/static" directory.
   #

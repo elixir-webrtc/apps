@@ -53,6 +53,8 @@ defmodule BroadcasterWeb.Router do
     end
   end
 
+  def cors_expose_headers, do: BroadcasterWeb.MediaController.cors_expose_headers()
+
   defp admin_auth(conn, _opts) do
     username = Application.fetch_env!(:broadcaster, :admin_username)
     password = Application.fetch_env!(:broadcaster, :admin_password)

@@ -10,6 +10,14 @@ defmodule BroadcasterWeb.MediaController do
   plug :accepts, ["sdp"] when action in [:whip, :whep]
   plug :accepts, ["trickle-ice-sdpfrag"] when action in [:ice_candidate]
 
+  # Used by Corsica in handling CORS requests: allows fetching response headers
+  # by external WHEP players implemented in a browser.
+  #
+  # All headers used in the WHEP responses should be specified here
+  def cors_expose_headers do
+    ["location", "link", "content-type", "connection", "cache-control"]
+  end
+
   # TODO: use proper statuses in case of error
   def whip(conn, _params) do
     with :ok <- authenticate(conn),
