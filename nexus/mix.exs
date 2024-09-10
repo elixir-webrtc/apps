@@ -4,7 +4,7 @@ defmodule Nexus.MixProject do
   def project do
     [
       app: :nexus,
-      version: "0.2.0-dev",
+      version: "0.3.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -51,8 +51,8 @@ defmodule Nexus.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
-      {:ex_webrtc, "~> 0.4.0"},
-      {:ex_webrtc_dashboard, "~> 0.4.0"},
+      {:ex_webrtc, "~> 0.5.0"},
+      {:ex_webrtc_dashboard, "~> 0.5.0"},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
