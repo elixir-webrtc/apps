@@ -43,7 +43,6 @@ defmodule RecognizerWeb do
         layouts: [html: RecognizerWeb.Layouts]
 
       import Plug.Conn
-      import RecognizerWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -85,7 +84,6 @@ defmodule RecognizerWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import RecognizerWeb.CoreComponents
-      import RecognizerWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
