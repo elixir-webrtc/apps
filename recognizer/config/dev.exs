@@ -47,7 +47,6 @@ config :recognizer, RecognizerWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r"priv/static/.*(js|css|png|jpeg|jpg|gif|svg)$",
-      ~r"priv/gettext/.*(po)$",
       ~r"lib/recognizer_web/(controllers|live|components)/.*(ex|heex)$"
     ]
   ]
