@@ -1,9 +1,9 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper-wrapper" class="w-full h-full gap-2 p-2">
+  <div id="videoplayer-wrapper" class="w-full h-full gap-2 p-2">
     <p id="status-message" class="text-brand/80 font-semibold hidden">
       Waiting for the stream to begin...
     </p>
-    <div id="videoplayer-wrapper" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
+    <div id="videoplayer-grid" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
     </div>
     <span class="font-bold text-xl"><%= @title %></span>
     <span class={"#{if @description != "", do: "bg-neutral-200	p-4 rounded-lg", else: ""}"}>

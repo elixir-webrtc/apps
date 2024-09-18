@@ -22,9 +22,9 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, {:set_layer, pc, layer})
   end
 
-  @spec get_layers(String.t()) :: {:ok, [String.t()] | nil} | :error
-  def get_layers(stream_id) do
-    GenServer.call(__MODULE__, {:get_layers, stream_id})
+  @spec get_layers(pid()) :: {:ok, [String.t()] | nil} | :error
+  def get_layers(pc) do
+    GenServer.call(__MODULE__, {:get_layers, pc})
   end
 
   @spec connect_input(pid(), String.t()) :: :ok
@@ -45,7 +45,6 @@ defmodule Broadcaster.Forwarder do
   @impl true
   def init(_arg) do
     state = %{
-      default_input: nil,
       inputs: %{},
       pending_outputs: %{},
       outputs: %{}
@@ -77,12 +76,12 @@ defmodule Broadcaster.Forwarder do
   end
 
   @impl true
-  def handle_call({:get_layers, input_id}, _from, state) do
-    with {:ok, input_id} <- expand_default_input_id(input_id, state),
+  def handle_call({:get_layers, pc}, _from, state) do
+    with {:ok, %{input_id: input_id}} <- Map.fetch(state.outputs, pc),
          {:ok, _pc, input} <- find_input(input_id, state) do
       {:reply, {:ok, input.available_layers}, state}
     else
-      {:error, _reason} -> {:reply, :error, state}
+      _other -> {:reply, :error, state}
     end
   end
 
@@ -102,24 +101,9 @@ defmodule Broadcaster.Forwarder do
       available_layers: video_track.rids
     }
 
-    state =
-      if is_nil(state.default_input),
-        do: %{state | default_input: id},
-        else: state
-
     state = put_in(state, [:inputs, pc], input)
-    default_layer = default_layer(input)
 
-    outputs =
-      Map.new(state.outputs, fn
-        {pid, %{input_id: :default} = output} ->
-          {pid, %{output | input_id: id, layer: default_layer, pending_layer: default_layer}}
-
-        {pid, output} ->
-          {pid, output}
-      end)
-
-    {:reply, :ok, %{state | outputs: outputs}}
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -129,7 +113,7 @@ defmodule Broadcaster.Forwarder do
     PeerConnection.controlling_process(pc, self())
     pending_outputs = Map.put(state.pending_outputs, pc, id)
 
-    Logger.info("Added new output #{inspect(pc)} for input #{id}")
+    Logger.info("Added new output #{inspect(pc)} for input #{inspect(id)}")
 
     {:reply, :ok, %{state | pending_outputs: pending_outputs}}
   end
@@ -150,20 +134,19 @@ defmodule Broadcaster.Forwarder do
       when is_map_key(state.pending_outputs, pc) do
     {input_id, state} = pop_in(state, [:pending_outputs, pc])
 
-    state =
-      with {:ok, input_id} <- expand_default_input_id(input_id, state),
-           {:ok, _input_pc, input} <- find_input(input_id, state) do
-        do_connect_output(pc, input, state)
-      else
-        # Output didn't specify a stream ID (wants the default one),
-        # but no-one is streaming at the moment:
-        # we'll accept the connection and tie the first added stream to it
-        {:error, :no_default_input} ->
-          do_connect_output(pc, nil, state)
+    # Fill default ID
+    input_id = input_id || state.inputs |> Map.values() |> List.first() |> then(& &1[:id])
 
-        # Output specified a stream ID, but it doesn't exist
+    state =
+      case find_input(input_id, state) do
+        {:ok, _input_pc, input} ->
+          do_connect_output(pc, input, state)
+
         {:error, :not_found} ->
-          Logger.info("Terminating output #{inspect(pc)} because input #{input_id} doesn't exist")
+          Logger.info(
+            "Terminating output #{inspect(pc)} because input #{inspect(input_id)} doesn't exist"
+          )
+
           PeerSupervisor.terminate_pc(pc)
 
           put_in(state, [:pending_outputs, pc], input_id)
@@ -220,18 +203,6 @@ defmodule Broadcaster.Forwarder do
       when is_map_key(state.inputs, pid) do
     {input, state} = pop_in(state, [:inputs, pid])
 
-    state =
-      cond do
-        map_size(state.inputs) == 0 ->
-          %{state | default_input: nil}
-
-        input.id == state.default_input ->
-          %{state | default_input: state.inputs |> Map.values() |> hd() |> then(& &1.id)}
-
-        true ->
-          state
-      end
-
     Logger.info(
       "Input #{input.id}: process #{inspect(pid)} exited with reason: #{inspect(reason)}"
     )
@@ -279,8 +250,6 @@ defmodule Broadcaster.Forwarder do
   end
 
   defp do_connect_output(pc, input, state) do
-    input_id = input[:id] || :default
-
     layer = default_layer(input)
 
     {audio_track, video_track} = get_tracks(pc, :sender)
@@ -289,13 +258,13 @@ defmodule Broadcaster.Forwarder do
     output = %{
       audio: audio_track.id,
       video: video_track.id,
-      input_id: input_id,
+      input_id: input.id,
       munger: munger,
       layer: layer,
       pending_layer: layer
     }
 
-    Logger.info("Output #{inspect(pc)} has successfully connected to input #{input_id}")
+    Logger.info("Output #{inspect(pc)} has successfully connected to input #{input.id}")
 
     # We don't send a PLI on behalf of the newly connected output.
     # Once the output sends a PLI to us, we'll forward it.
@@ -344,13 +313,8 @@ defmodule Broadcaster.Forwarder do
     {audio_track, video_track}
   end
 
-  defp default_layer(nil), do: nil
   defp default_layer(%{available_layers: nil}), do: nil
   defp default_layer(%{available_layers: [first | _]}), do: first
-
-  defp expand_default_input_id("default", %{default_input: nil}), do: {:error, :no_default_input}
-  defp expand_default_input_id("default", %{default_input: id}), do: {:ok, id}
-  defp expand_default_input_id(input_id, _state), do: {:ok, input_id}
 
   defp find_input(id, %{inputs: inputs}) do
     case Enum.find(inputs, fn {_pc, input} -> input.id == id end) do

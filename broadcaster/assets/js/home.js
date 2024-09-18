@@ -7,7 +7,7 @@ const chat = document.getElementById('chat');
 const settingsToggler = document.getElementById('settings-toggler');
 const settings = document.getElementById('settings');
 const videoQuality = document.getElementById('video-quality');
-const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
+const videoPlayerWrapper = document.getElementById('videoplayer-grid');
 const statusMessage = document.getElementById('status-message');
 
 const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -15,7 +15,7 @@ const whepEndpointBase = `${window.location.origin}/api/whep`;
 const streamsData = new Map();
 let defaultLayer = 'h';
 
-async function connectMedia(socket) {
+async function connectSignalling(socket) {
   const channel = socket.channel('stream:signalling');
 
   channel.on('stream_added', ({ id: id }) => {
@@ -281,7 +281,7 @@ export const Home = {
     });
     socket.connect();
 
-    connectMedia(socket);
+    connectSignalling(socket);
     connectChat(socket, false);
 
     videoQuality.onchange = () => setDefaultLayer(videoQuality.value);

@@ -35,10 +35,10 @@ defmodule BroadcasterWeb.MediaController do
   end
 
   def whep(conn, params) do
-    stream_id = params["streamId"] || "default"
+    stream_id = params["streamId"]
 
     with {:ok, offer_sdp, conn} <- read_body(conn),
-         {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp, stream_id),
+         {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
          :ok <- Forwarder.connect_output(pc, stream_id) do
       uri = ~p"/api/resource/#{pc_id}"
 
@@ -82,16 +82,16 @@ defmodule BroadcasterWeb.MediaController do
   end
 
   def event_stream(conn, %{"resource_id" => resource_id}) do
-    with {:ok, _pid} <- PeerSupervisor.fetch_pid(resource_id),
-         [stream_id, _pc_id] <- String.split(resource_id, "-") do
-      conn
-      |> put_resp_header("content-type", "text/event-stream")
-      |> put_resp_header("connection", "keep-alive")
-      |> put_resp_header("cache-control", "no-cache")
-      |> send_chunked(200)
-      |> update_layers(stream_id)
-    else
-      _other ->
+    case PeerSupervisor.fetch_pid(resource_id) do
+      {:ok, pid} ->
+        conn
+        |> put_resp_header("content-type", "text/event-stream")
+        |> put_resp_header("connection", "keep-alive")
+        |> put_resp_header("cache-control", "no-cache")
+        |> send_chunked(200)
+        |> update_layers(pid)
+
+      :error ->
         send_resp(conn, 400, "Bad request")
     end
   end
@@ -130,8 +130,8 @@ defmodule BroadcasterWeb.MediaController do
     end
   end
 
-  defp update_layers(conn, stream_id) do
-    case Forwarder.get_layers(stream_id) do
+  defp update_layers(conn, pid) do
+    case Forwarder.get_layers(pid) do
       {:ok, layers} ->
         data = Jason.encode!(%{layers: layers})
         chunk(conn, ~s/data: #{data}\n\n/)
@@ -139,7 +139,7 @@ defmodule BroadcasterWeb.MediaController do
         Process.send_after(self(), :layers, 2000)
 
         receive do
-          :layers -> update_layers(conn, stream_id)
+          :layers -> update_layers(conn, pid)
         end
 
       :error ->
