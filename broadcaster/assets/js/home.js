@@ -1,6 +1,7 @@
 import { Socket } from 'phoenix';
 
 import { connectChat } from './chat.js';
+import { WHEPClient } from './whep-client.js';
 
 const chatToggler = document.getElementById('chat-toggler');
 const chat = document.getElementById('chat');
@@ -10,13 +11,12 @@ const videoQuality = document.getElementById('video-quality');
 const videoPlayerWrapper = document.getElementById('videoplayer-grid');
 const statusMessage = document.getElementById('status-message');
 
-const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const whepEndpointBase = `${window.location.origin}/api/whep`;
 const streamsData = new Map();
 let defaultLayer = 'h';
 
-async function connectSignalling(socket) {
-  const channel = socket.channel('stream:signalling');
+async function connectSignaling(socket) {
+  const channel = socket.channel('broadcaster:signaling');
 
   channel.on('stream_added', ({ id: id }) => {
     console.log('New stream:', id);
@@ -32,7 +32,7 @@ async function connectSignalling(socket) {
     .join()
     .receive('ok', ({ streams: streams }) => {
       console.log(
-        'Joined signalling channel successfully\nAvailable streams:',
+        'Joined signaling channel successfully\nAvailable streams:',
         streams
       );
 
@@ -48,7 +48,7 @@ async function connectSignalling(socket) {
     })
     .receive('error', (resp) => {
       console.error(
-        'Catastrophic failure: Unable to join signalling channel',
+        'Catastrophic failure: Unable to join signaling channel',
         resp
       );
 
@@ -59,90 +59,35 @@ async function connectSignalling(socket) {
 }
 
 async function connectStream(streamId) {
-  const candidates = [];
-
-  const pc = new RTCPeerConnection(pcConfig);
+  const whepEndpoint = whepEndpointBase + '?streamId=' + streamId;
+  const whepClient = new WHEPClient(whepEndpoint);
 
   const streamData = {
-    pc: pc,
-    patchEndpoint: undefined,
+    whepClient: whepClient,
     videoPlayer: undefined,
   };
   streamsData.set(streamId, streamData);
 
-  pc.ontrack = (event) => {
-    if (event.track.kind == 'video') {
-      console.log(`[${streamId}]: Creating new video element`);
+  whepClient.id = streamId;
 
-      const videoPlayer = document.createElement('video');
-      videoPlayer.srcObject = event.streams[0];
-      videoPlayer.autoplay = true;
-      videoPlayer.controls = true;
-      videoPlayer.muted = true;
-      videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
+  whepClient.onstream = (stream) => {
+    console.log(`[${streamId}]: Creating new video element`);
 
-      videoPlayerWrapper.appendChild(videoPlayer);
-      streamData.videoPlayer = videoPlayer;
-      updateVideoGrid();
-      changeLayer(streamId, defaultLayer);
-    } else {
-      // Audio tracks are associated with the stream (`event.streams[0]`) and require no separate actions
-      console.log(`[${streamId}]: Audio track added`);
-    }
+    const videoPlayer = document.createElement('video');
+    videoPlayer.srcObject = stream;
+    videoPlayer.autoplay = true;
+    videoPlayer.controls = true;
+    videoPlayer.muted = true;
+    videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
+
+    videoPlayerWrapper.appendChild(videoPlayer);
+    streamData.videoPlayer = videoPlayer;
+    updateVideoGrid();
+    whepClient.changeLayer(defaultLayer);
+    statusMessage.classList.add('hidden');
   };
 
-  pc.onicegatheringstatechange = () =>
-    console.log(`[${streamId}]: Gathering state change:`, pc.iceGatheringState);
-  pc.onconnectionstatechange = () =>
-    console.log(`[${streamId}]: Connection state change:`, pc.connectionState);
-  pc.onicecandidate = (event) => {
-    if (event.candidate == null) {
-      return;
-    }
-
-    const candidate = JSON.stringify(event.candidate);
-    if (streamData.patchEndpoint === undefined) {
-      candidates.push(candidate);
-    } else {
-      sendCandidate(candidate, streamData.patchEndpoint, streamId);
-    }
-  };
-
-  pc.addTransceiver('video', { direction: 'recvonly' });
-  pc.addTransceiver('audio', { direction: 'recvonly' });
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  const whepEndpoint = whepEndpointBase + '?streamId=' + streamId;
-  const response = await fetch(whepEndpoint, {
-    method: 'POST',
-    cache: 'no-cache',
-    headers: {
-      Accept: 'application/sdp',
-      'Content-Type': 'application/sdp',
-    },
-    body: pc.localDescription.sdp,
-  });
-
-  if (response.status !== 201) {
-    console.error(
-      `[${streamId}]: Failed to initialize WHEP connection, status: ${response.status}`
-    );
-    return;
-  }
-
-  streamData.patchEndpoint = response.headers.get('location');
-  console.log(`[${streamId}]: Sucessfully initialized WHEP connection`);
-
-  for (const candidate of candidates) {
-    sendCandidate(candidate, streamData.patchEndpoint, streamId);
-  }
-
-  const sdp = await response.text();
-  await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
-
-  statusMessage.classList.add('hidden');
+  whepClient.connect();
 }
 
 async function removeStream(streamId) {
@@ -150,7 +95,7 @@ async function removeStream(streamId) {
   streamsData.delete(streamId);
 
   if (streamData) {
-    streamData.pc.close();
+    streamData.whepClient.disconnect();
 
     if (streamData.videoPlayer) {
       videoPlayerWrapper.removeChild(streamData.videoPlayer);
@@ -164,59 +109,11 @@ async function removeStream(streamId) {
   }
 }
 
-async function sendCandidate(candidate, patchEndpoint, streamId) {
-  const response = await fetch(patchEndpoint, {
-    method: 'PATCH',
-    cache: 'no-cache',
-    headers: {
-      'Content-Type': 'application/trickle-ice-sdpfrag',
-    },
-    body: candidate,
-  });
-
-  if (response.status === 204) {
-    console.log(`[${streamId}]: Successfully sent ICE candidate:`, candidate);
-  } else {
-    console.error(
-      `[${streamId}]: Failed to send ICE, status: ${response.status}, candidate:`,
-      candidate
-    );
-  }
-}
-
 async function setDefaultLayer(layer) {
   if (defaultLayer !== layer) {
     defaultLayer = layer;
-    for (const streamId of streamsData.keys()) {
-      changeLayer(streamId, layer);
-    }
-  }
-}
-
-async function changeLayer(streamId, layer) {
-  // According to the spec, we should gather the info about available layers from the `layers` event
-  // emitted in the SSE stream tied to *one* given WHEP session.
-  //
-  // However, to simplify the implementation and decrease resource usage, we're assuming each stream
-  // has the layers with `encodingId` of `h`, `m` and `l`, corresponding to high, medium and low video quality.
-  // If that's not the case (e.g. the stream doesn't use simulcast), the server returns an error response which we ignore.
-  //
-  // Nevertheless, the server supports the `Server Sent Events` and `Video Layer Selection` WHEP extensions,
-  // and WHEP players other than this site are free to use them.
-  //
-  // For more info refer to https://www.ietf.org/archive/id/draft-ietf-wish-whep-01.html#section-4.6.2
-  const streamData = streamsData.get(streamId);
-
-  if (streamData && streamData.patchEndpoint) {
-    const response = await fetch(`${streamData.patchEndpoint}/layer`, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ encodingId: layer }),
-    });
-
-    if (response.status != 200) {
-      console.warn(`[${streamId}]: Changing layer failed`, response);
+    for (const { whepClient: whepClient } of streamsData.values()) {
+      whepClient.changeLayer(layer);
     }
   }
 }
@@ -281,7 +178,7 @@ export const Home = {
     });
     socket.connect();
 
-    connectSignalling(socket);
+    connectSignaling(socket);
     connectChat(socket, false);
 
     videoQuality.onchange = () => setDefaultLayer(videoQuality.value);

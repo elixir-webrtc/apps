@@ -7,7 +7,7 @@ export async function connectChat(socket, isAdmin) {
   const chatNickname = document.getElementById('chat-nickname');
   const chatButton = document.getElementById('chat-button');
 
-  const channel = socket.channel('stream:chat');
+  const channel = socket.channel('broadcaster:chat');
   const presence = new Presence(channel);
 
   presence.onSync(() => {

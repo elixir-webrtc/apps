@@ -10,7 +10,7 @@ defmodule Broadcaster.Forwarder do
   alias ExWebRTC.RTP.Munger
 
   alias Broadcaster.PeerSupervisor
-  alias BroadcasterWeb.StreamChannel
+  alias BroadcasterWeb.Channel
 
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(_arg) do
@@ -124,7 +124,7 @@ defmodule Broadcaster.Forwarder do
     id = get_in(state, [:inputs, pc, :id])
     Logger.info("Input #{id} (#{inspect(pc)}) has successfully connected")
 
-    StreamChannel.stream_added(id)
+    Channel.stream_added(id)
 
     {:noreply, state}
   end
@@ -211,7 +211,8 @@ defmodule Broadcaster.Forwarder do
       if input_id == input.id, do: PeerSupervisor.terminate_pc(pc)
     end
 
-    StreamChannel.stream_removed(input.id)
+    Channel.stream_removed(input.id)
+
     {:noreply, state}
   end
 

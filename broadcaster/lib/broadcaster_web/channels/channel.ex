@@ -1,4 +1,4 @@
-defmodule BroadcasterWeb.StreamChannel do
+defmodule BroadcasterWeb.Channel do
   @moduledoc false
 
   use BroadcasterWeb, :channel
@@ -7,22 +7,22 @@ defmodule BroadcasterWeb.StreamChannel do
 
   @spec stream_added(String.t()) :: :ok
   def stream_added(id) do
-    Endpoint.broadcast!("stream:signalling", "stream_added", %{id: id})
+    Endpoint.broadcast!("broadcaster:signaling", "stream_added", %{id: id})
   end
 
   @spec stream_removed(String.t()) :: :ok
   def stream_removed(id) do
-    Endpoint.broadcast!("stream:signalling", "stream_removed", %{id: id})
+    Endpoint.broadcast!("broadcaster:signaling", "stream_removed", %{id: id})
   end
 
   @impl true
-  def join("stream:signalling", _, socket) do
+  def join("broadcaster:signaling", _, socket) do
     msg = %{streams: Broadcaster.Forwarder.streams()}
     {:ok, msg, socket}
   end
 
   @impl true
-  def join("stream:chat", _, socket) do
+  def join("broadcaster:chat", _, socket) do
     send(self(), :after_join)
     {:ok, assign(socket, :nickname, nil)}
   end

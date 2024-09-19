@@ -1,7 +1,7 @@
 defmodule BroadcasterWeb.UserSocket do
   use Phoenix.Socket
 
-  channel "stream:*", BroadcasterWeb.StreamChannel
+  channel "broadcaster:*", BroadcasterWeb.Channel
 
   @impl true
   def connect(_params, socket, _connect_info) do
