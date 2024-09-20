@@ -5,7 +5,7 @@
     </p>
     <div id="videoplayer-grid" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
     </div>
-    <div id="stream-desc" class="flex flex-col gap-3">
+    <div id="stream-desc" class="flex flex-col gap-3 p-2">
       <span class="font-bold text-xl"><%= raw(@title) %></span>
       <span class={"#{if @description != "", do: "bg-neutral-200 p-4 rounded-lg text-wrap break-words", else: ""}"}>
         <%= raw(@description) %>
