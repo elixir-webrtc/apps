@@ -1,3 +1,5 @@
+import { Socket } from 'phoenix';
+
 import { connectChat } from './chat.js';
 
 const audioDevices = document.getElementById('audioDevices');
@@ -105,28 +107,27 @@ async function startStreaming() {
 
   pc = new RTCPeerConnection();
   pc.addTrack(localStream.getAudioTracks()[0], localStream);
-  pc.addTransceiver(localStream.getVideoTracks()[0], {
-    streams: [localStream],
-    sendEncodings: [
-      { rid: 'h', maxBitrate: 1500 * 1024 },
-      { rid: 'm', scaleResolutionDownBy: 2, maxBitrate: 600 * 1024 },
-      { rid: 'l', scaleResolutionDownBy: 4, maxBitrate: 300 * 1024 },
-    ],
-  });
+  const { sender: videoSender } = pc.addTransceiver(
+    localStream.getVideoTracks()[0],
+    {
+      streams: [localStream],
+      sendEncodings: [
+        { rid: 'h', maxBitrate: 1500 * 1024 },
+        { rid: 'm', scaleResolutionDownBy: 2, maxBitrate: 600 * 1024 },
+        { rid: 'l', scaleResolutionDownBy: 4, maxBitrate: 300 * 1024 },
+      ],
+    }
+  );
 
   // limit max bitrate
-  pc.getSenders()
-    .filter((sender) => sender.track.kind === 'video')
-    .forEach(async (sender) => {
-      const params = sender.getParameters();
-      params.encodings.find((e) => e.rid === 'h').maxBitrate =
-        parseInt(highVideoBitrate.value) * 1024;
-      params.encodings.find((e) => e.rid === 'm').maxBitrate =
-        parseInt(mediumVideoBitrate.value) * 1024;
-      params.encodings.find((e) => e.rid === 'l').maxBitrate =
-        parseInt(lowVideoBitrate.value) * 1024;
-      await sender.setParameters(params);
-    });
+  const params = videoSender.getParameters();
+  params.encodings.find((e) => e.rid === 'h').maxBitrate =
+    parseInt(highVideoBitrate.value) * 1024;
+  params.encodings.find((e) => e.rid === 'm').maxBitrate =
+    parseInt(mediumVideoBitrate.value) * 1024;
+  params.encodings.find((e) => e.rid === 'l').maxBitrate =
+    parseInt(lowVideoBitrate.value) * 1024;
+  await videoSender.setParameters(params);
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -207,8 +208,13 @@ async function run() {
 
 export const Panel = {
   mounted() {
+    const socket = new Socket('/socket', {
+      params: { token: window.userToken },
+    });
+    socket.connect();
+
     setupSaveStreamConfigButton();
-    connectChat(true);
+    connectChat(socket, true);
     run();
   },
 };

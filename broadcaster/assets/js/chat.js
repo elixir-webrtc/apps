@@ -1,17 +1,13 @@
-import { Socket, Presence } from 'phoenix';
+import { Presence } from 'phoenix';
 
-export async function connectChat(isAdmin) {
+export async function connectChat(socket, isAdmin) {
   const viewercount = document.getElementById('viewercount');
   const chatMessages = document.getElementById('chat-messages');
   const chatInput = document.getElementById('chat-input');
   const chatNickname = document.getElementById('chat-nickname');
   const chatButton = document.getElementById('chat-button');
 
-  let socket = new Socket('/socket', { params: { token: window.userToken } });
-
-  socket.connect();
-
-  const channel = socket.channel('stream:chat');
+  const channel = socket.channel('broadcaster:chat');
   channel.onError((reason) => console.log('Channel error. Reason: ', reason));
 
   const presence = new Presence(channel);
@@ -64,7 +60,7 @@ export async function connectChat(isAdmin) {
       console.log('Joined chat channel successfully', resp);
     })
     .receive('error', (resp) => {
-      console.log('Unable to join chat channel', resp);
+      console.error('Unable to join chat channel', resp);
     });
 }
 

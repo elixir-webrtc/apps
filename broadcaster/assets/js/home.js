@@ -1,184 +1,124 @@
+import { Socket } from 'phoenix';
+
 import { connectChat } from './chat.js';
+import { WHEPClient } from './whep-client.js';
 
 const chatToggler = document.getElementById('chat-toggler');
 const chat = document.getElementById('chat');
 const settingsToggler = document.getElementById('settings-toggler');
 const settings = document.getElementById('settings');
 const videoQuality = document.getElementById('video-quality');
+const videoPlayerWrapper = document.getElementById('videoplayer-grid');
+const statusMessage = document.getElementById('status-message');
 
-const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const whepEndpoint = `${window.location.origin}/api/whep`;
-const videoPlayer = document.getElementById('videoplayer');
-const candidates = [];
-let patchEndpoint;
-let layers = null;
+const whepEndpointBase = `${window.location.origin}/api/whep`;
+const streamsData = new Map();
+let defaultLayer = 'h';
 
-async function sendCandidate(candidate) {
-  const response = await fetch(patchEndpoint, {
-    method: 'PATCH',
-    cache: 'no-cache',
-    headers: {
-      'Content-Type': 'application/trickle-ice-sdpfrag',
-    },
-    body: candidate,
+async function connectSignaling(socket) {
+  const channel = socket.channel('broadcaster:signaling');
+
+  channel.on('stream_added', ({ id: id }) => {
+    console.log('New stream:', id);
+    connectStream(id);
   });
 
-  if (response.status === 204) {
-    console.log('Successfully sent ICE candidate:', candidate);
-  } else {
-    console.error(
-      `Failed to send ICE, status: ${response.status}, candidate:`,
-      candidate
-    );
-  }
-}
-
-async function connectMedia() {
-  const pc = new RTCPeerConnection(pcConfig);
-
-  pc.ontrack = (event) => (videoPlayer.srcObject = event.streams[0]);
-  pc.onicegatheringstatechange = () =>
-    console.log('Gathering state change: ' + pc.iceGatheringState);
-  pc.onconnectionstatechange = () =>
-    console.log('Connection state change: ' + pc.connectionState);
-  pc.onicecandidate = (event) => {
-    if (event.candidate == null) {
-      return;
-    }
-
-    const candidate = JSON.stringify(event.candidate);
-    if (patchEndpoint === undefined) {
-      candidates.push(candidate);
-    } else {
-      sendCandidate(candidate);
-    }
-  };
-
-  pc.addTransceiver('video', { direction: 'recvonly' });
-  pc.addTransceiver('audio', { direction: 'recvonly' });
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  const response = await fetch(whepEndpoint, {
-    method: 'POST',
-    cache: 'no-cache',
-    headers: {
-      Accept: 'application/sdp',
-      'Content-Type': 'application/sdp',
-    },
-    body: pc.localDescription.sdp,
+  channel.on('stream_removed', ({ id: id }) => {
+    console.log('Stream ended:', id);
+    removeStream(id);
   });
 
-  if (response.status !== 201) {
-    console.error(
-      `Failed to initialize WHEP connection, status: ${response.status}`
-    );
-    return;
-  }
+  channel
+    .join()
+    .receive('ok', ({ streams: streams }) => {
+      console.log(
+        'Joined signaling channel successfully\nAvailable streams:',
+        streams
+      );
 
-  patchEndpoint = response.headers.get('location');
-  console.log('Sucessfully initialized WHEP connection');
+      if (streams.length === 0) {
+        statusMessage.innerText =
+          'Connected. Waiting for the stream to begin...';
+        statusMessage.classList.remove('hidden');
+      }
 
-  for (const candidate of candidates) {
-    sendCandidate(candidate);
-  }
+      for (const id of streams) {
+        connectStream(id);
+      }
+    })
+    .receive('error', (resp) => {
+      console.error(
+        'Catastrophic failure: Unable to join signaling channel',
+        resp
+      );
 
-  let sdp = await response.text();
-  await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
-
-  connectServerEvents();
-}
-
-async function connectServerEvents() {
-  const response = await fetch(`${patchEndpoint}/sse`, {
-    method: 'POST',
-    cache: 'no-cache',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(['layers']),
-  });
-
-  if (response.status !== 201) {
-    console.error(`Failed to fetch SSE endpoint, status: ${response.status}`);
-    return;
-  }
-
-  const eventStream = response.headers.get('location');
-  const eventSource = new EventSource(eventStream);
-  eventSource.onopen = (ev) => {
-    console.log('EventStream opened', ev);
-  };
-
-  eventSource.onmessage = (ev) => {
-    const data = JSON.parse(ev.data);
-    updateLayers(data.layers);
-  };
-
-  eventSource.onerror = (ev) => {
-    console.log('EventStream closed', ev);
-    eventSource.close();
-  };
-}
-
-function updateLayers(new_layers) {
-  // check if layers changed, if not, just return
-  if (new_layers === null && layers === null) return;
-  if (
-    layers !== null &&
-    new_layers !== null &&
-    new_layers.length === layers.length &&
-    new_layers.every((layer, i) => layer === layers[i])
-  )
-    return;
-
-  if (new_layers === null) {
-    videoQuality.appendChild(new Option('Disabled', null, true, true));
-    videoQuality.disabled = true;
-    layers = null;
-    return;
-  }
-
-  while (videoQuality.firstChild) {
-    videoQuality.removeChild(videoQuality.firstChild);
-  }
-
-  if (new_layers === null) {
-    videoQuality.appendChild(new Option('Disabled', null, true, true));
-    videoQuality.disabled = true;
-  } else {
-    videoQuality.disabled = false;
-    new_layers
-      .map((layer, i) => {
-        var text = layer;
-        if (layer == 'h') text = 'High';
-        if (layer == 'm') text = 'Medium';
-        if (layer == 'l') text = 'Low';
-        return new Option(text, layer, i == 0, layer == 0);
-      })
-      .forEach((option) => videoQuality.appendChild(option));
-  }
-
-  layers = new_layers;
-}
-
-async function changeLayer(layer) {
-  if (patchEndpoint) {
-    const response = await fetch(`${patchEndpoint}/layer`, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ encodingId: layer }),
+      statusMessage.innerText =
+        'Unable to join the stream, try again in a few minutes';
+      statusMessage.classList.remove('hidden');
     });
+}
 
-    if (response.status != 200) {
-      console.warn('Changing layer failed', response);
-      updateLayers(null);
+async function connectStream(streamId) {
+  const whepEndpoint = whepEndpointBase + '?streamId=' + streamId;
+  const whepClient = new WHEPClient(whepEndpoint);
+
+  const streamData = {
+    whepClient: whepClient,
+    videoPlayer: undefined,
+  };
+  streamsData.set(streamId, streamData);
+
+  whepClient.id = streamId;
+
+  whepClient.onstream = (stream) => {
+    console.log(`[${streamId}]: Creating new video element`);
+
+    const videoPlayer = document.createElement('video');
+    videoPlayer.srcObject = stream;
+    videoPlayer.autoplay = true;
+    videoPlayer.controls = true;
+    videoPlayer.muted = true;
+    videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
+
+    videoPlayerWrapper.appendChild(videoPlayer);
+    streamData.videoPlayer = videoPlayer;
+    updateVideoGrid();
+    whepClient.changeLayer(defaultLayer);
+    statusMessage.classList.add('hidden');
+  };
+
+  whepClient.connect();
+}
+
+async function removeStream(streamId) {
+  const streamData = streamsData.get(streamId);
+  streamsData.delete(streamId);
+
+  if (streamData) {
+    streamData.whepClient.disconnect();
+
+    if (streamData.videoPlayer) {
+      videoPlayerWrapper.removeChild(streamData.videoPlayer);
+      updateVideoGrid();
+    }
+  }
+
+  if (streamsData.size === 0) {
+    statusMessage.innerText = 'Connected. Waiting for the stream to begin...';
+    statusMessage.classList.remove('hidden');
+  }
+}
+
+async function setDefaultLayer(layer) {
+  if (defaultLayer !== layer) {
+    defaultLayer = layer;
+    for (const { whepClient: whepClient } of streamsData.values()) {
+      whepClient.changeLayer(layer);
     }
   }
 }
 
 function toggleBox(element, other) {
-  const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
   if (window.getComputedStyle(element).display === 'none') {
     // For screen's width lower than 1024,
     // eiter show video player or chat at the same time.
@@ -205,12 +145,43 @@ function toggleBox(element, other) {
   }
 }
 
+function updateVideoGrid() {
+  const videoCount = videoPlayerWrapper.children.length;
+
+  let columns;
+  if (videoCount <= 1) {
+    columns = 'grid-cols-1';
+  } else if (videoCount <= 4) {
+    columns = 'grid-cols-2';
+  } else if (videoCount <= 9) {
+    columns = 'grid-cols-3';
+  } else if (videoCount <= 16) {
+    columns = 'grid-cols-4';
+  } else {
+    columns = 'grid-cols-5';
+  }
+
+  videoPlayerWrapper.classList.remove(
+    'grid-cols-1',
+    'grid-cols-2',
+    'grid-cols-3',
+    'grid-cols-4',
+    'grid-cols-5'
+  );
+  videoPlayerWrapper.classList.add(columns);
+}
+
 export const Home = {
   mounted() {
-    connectMedia();
-    connectChat(false);
+    const socket = new Socket('/socket', {
+      params: { token: window.userToken },
+    });
+    socket.connect();
 
-    videoQuality.onchange = () => changeLayer(videoQuality.value);
+    connectSignaling(socket);
+    connectChat(socket, false);
+
+    videoQuality.onchange = () => setDefaultLayer(videoQuality.value);
 
     chatToggler.onclick = () => toggleBox(chat, settings);
     settingsToggler.onclick = () => toggleBox(settings, chat);

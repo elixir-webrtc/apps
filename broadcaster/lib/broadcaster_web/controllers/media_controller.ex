@@ -10,12 +10,20 @@ defmodule BroadcasterWeb.MediaController do
   plug :accepts, ["sdp"] when action in [:whip, :whep]
   plug :accepts, ["trickle-ice-sdpfrag"] when action in [:ice_candidate]
 
+  # Used by Corsica in handling CORS requests: allows fetching response headers
+  # by external WHEP players implemented in a browser.
+  #
+  # All headers used in the WHEP responses should be specified here
+  def cors_expose_headers do
+    ["location", "link", "content-type", "connection", "cache-control"]
+  end
+
   # TODO: use proper statuses in case of error
   def whip(conn, _params) do
     with :ok <- authenticate(conn),
          {:ok, offer_sdp, conn} <- read_body(conn),
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whip(offer_sdp),
-         :ok <- Forwarder.connect_input(pc) do
+         :ok <- Forwarder.connect_input(pc, pc_id) do
       conn
       |> put_resp_header("location", ~p"/api/resource/#{pc_id}")
       |> put_resp_content_type("application/sdp")
@@ -26,10 +34,12 @@ defmodule BroadcasterWeb.MediaController do
     |> send_resp()
   end
 
-  def whep(conn, _params) do
+  def whep(conn, params) do
+    stream_id = params["streamId"]
+
     with {:ok, offer_sdp, conn} <- read_body(conn),
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
-         :ok <- Forwarder.connect_output(pc) do
+         :ok <- Forwarder.connect_output(pc, stream_id) do
       uri = ~p"/api/resource/#{pc_id}"
 
       conn
@@ -73,15 +83,15 @@ defmodule BroadcasterWeb.MediaController do
 
   def event_stream(conn, %{"resource_id" => resource_id}) do
     case PeerSupervisor.fetch_pid(resource_id) do
-      {:ok, _pid} ->
+      {:ok, pid} ->
         conn
         |> put_resp_header("content-type", "text/event-stream")
         |> put_resp_header("connection", "keep-alive")
         |> put_resp_header("cache-control", "no-cache")
         |> send_chunked(200)
-        |> update_layers()
+        |> update_layers(pid)
 
-      _other ->
+      :error ->
         send_resp(conn, 400, "Bad request")
     end
   end
@@ -120,15 +130,20 @@ defmodule BroadcasterWeb.MediaController do
     end
   end
 
-  defp update_layers(conn) do
-    layers = Forwarder.get_layers()
-    data = Jason.encode!(%{layers: layers})
-    chunk(conn, ~s/data: #{data}\n\n/)
+  defp update_layers(conn, pid) do
+    case Forwarder.get_layers(pid) do
+      {:ok, layers} ->
+        data = Jason.encode!(%{layers: layers})
+        chunk(conn, ~s/data: #{data}\n\n/)
 
-    Process.send_after(self(), :layers, 2000)
+        Process.send_after(self(), :layers, 2000)
 
-    receive do
-      :layers -> update_layers(conn)
+        receive do
+          :layers -> update_layers(conn, pid)
+        end
+
+      :error ->
+        conn
     end
   end
 end
