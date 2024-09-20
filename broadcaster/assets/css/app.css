@@ -3,6 +3,14 @@
 @import 'tailwindcss/utilities';
 
 /* This file is for your main application CSS */
+#stream-desc a {
+  @apply underline text-brand hover:text-brand;
+}
+
+ul {
+  @apply list-disc list-inside;
+}
+
 .invalid-input {
   border-color: #d52b4d;
 }

@@ -15,6 +15,9 @@ defmodule BroadcasterWeb.Channel do
     Endpoint.broadcast!("broadcaster:signaling", "stream_removed", %{id: id})
   end
 
+  @max_nickname_length 25
+  @max_message_length 500
+
   @impl true
   def join("broadcaster:signaling", _, socket) do
     msg = %{streams: Broadcaster.Forwarder.streams()}
@@ -34,12 +37,15 @@ defmodule BroadcasterWeb.Channel do
 
   @impl true
   def handle_in("chat_msg", %{"body" => body}, socket) do
+    body = String.slice(body, 0..(@max_message_length - 1))
+
     msg = %{
       body: body,
       nickname: socket.assigns.nickname,
       id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}"
     }
 
+    Broadcaster.ChatHistory.put(msg)
     broadcast!(socket, "chat_msg", msg)
 
     {:noreply, assign(socket, :msg_count, socket.assigns.msg_count + 1)}
@@ -67,10 +73,22 @@ defmodule BroadcasterWeb.Channel do
   def handle_info(:after_join, socket) do
     {:ok, _} = Presence.track(socket, socket.assigns.user_id, %{})
     push(socket, "presence_state", Presence.list(socket))
+
+    Broadcaster.ChatHistory.get()
+    |> Enum.each(fn msg -> :ok = push(socket, "chat_msg", msg) end)
+
     {:noreply, socket}
   end
 
-  defp register(nickname), do: do_register(String.trim(nickname))
+  defp register(nickname) do
+    if String.length(nickname) <= @max_nickname_length do
+      nickname
+      |> String.trim()
+      |> do_register()
+    else
+      :error
+    end
+  end
 
   defp do_register(""), do: :error
 

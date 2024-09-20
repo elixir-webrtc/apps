@@ -8,11 +8,10 @@ export async function connectChat(socket, isAdmin) {
   const chatButton = document.getElementById('chat-button');
 
   const channel = socket.channel('broadcaster:chat');
-  const presence = new Presence(channel);
+  channel.onError((reason) => console.log('Channel error. Reason: ', reason));
 
-  presence.onSync(() => {
-    viewercount.innerText = presence.list().length;
-  });
+  const presence = new Presence(channel);
+  presence.onSync(() => (viewercount.innerText = presence.list().length));
 
   if (!isAdmin) {
     const send = () => {
@@ -50,6 +49,11 @@ export async function connectChat(socket, isAdmin) {
     };
   }
 
+  channel.on('chat_msg', (msg) =>
+    appendChatMessage(chatMessages, msg, isAdmin)
+  );
+  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
+
   channel
     .join()
     .receive('ok', (resp) => {
@@ -58,15 +62,16 @@ export async function connectChat(socket, isAdmin) {
     .receive('error', (resp) => {
       console.error('Unable to join chat channel', resp);
     });
-
-  channel.on('chat_msg', (msg) =>
-    appendChatMessage(chatMessages, msg, isAdmin)
-  );
-  channel.on('delete_chat_msg', (msg) => deleteChatMessage(chatMessages, msg));
 }
 
 function appendChatMessage(chatMessages, msg, isAdmin) {
   if (msg.nickname == undefined || msg.body == undefined) return;
+
+  // Check whether we have already been at the bottom of the chat.
+  // If not, we won't scroll down after appending a message.
+  const wasAtBottom =
+    chatMessages.scrollHeight - chatMessages.clientHeight <=
+    chatMessages.scrollTop + 10;
 
   const chatMessage = document.createElement('div');
   chatMessage.classList.add('chat-message');
@@ -104,11 +109,12 @@ function appendChatMessage(chatMessages, msg, isAdmin) {
 
   chatMessages.appendChild(chatMessage);
 
-  // scroll to the bottom after adding a message
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (wasAtBottom == true) {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
 
-  // allow for 1 scroll history
-  if (chatMessages.scrollHeight > 2 * chatMessages.clientHeight) {
+  // allow for 3-scroll history
+  if (chatMessages.scrollHeight > 4 * chatMessages.clientHeight) {
     chatMessages.removeChild(chatMessages.children[0]);
   }
 }

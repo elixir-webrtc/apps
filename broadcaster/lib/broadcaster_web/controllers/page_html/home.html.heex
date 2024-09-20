@@ -1,14 +1,16 @@
 <div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper" class="w-full h-full gap-2 p-2">
+  <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-3 overflow-y-scroll">
     <p id="status-message" class="text-brand/80 font-semibold hidden">
       Waiting for the stream to begin...
     </p>
     <div id="videoplayer-grid" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
     </div>
-    <span class="font-bold text-xl"><%= @title %></span>
-    <span class={"#{if @description != "", do: "bg-neutral-200	p-4 rounded-lg", else: ""}"}>
-      <%= @description %>
-    </span>
+    <div id="stream-desc" class="flex flex-col gap-3">
+      <span class="font-bold text-xl"><%= raw(@title) %></span>
+      <span class={"#{if @description != "", do: "bg-neutral-200 p-4 rounded-lg text-wrap break-words", else: ""}"}>
+        <%= raw(@description) %>
+      </span>
+    </div>
   </div>
   <div
     id="chat"
@@ -21,6 +23,7 @@
         <textarea
           id="chat-input"
           class="resize-none rounded-lg w-full border-brand/50 focus:border-brand/100 focus:outline-none focus:ring-0"
+          maxlength="500"
           disabled
         ></textarea>
       </div>
@@ -29,6 +32,7 @@
           id="chat-nickname"
           class="text-brand/80 font-semibold min-w-0 bg-brand/10 rounded-lg border pl-2 border-brand/50 focus:border-brand/100 focus:outline-none"
           placeholder="Your Nickname"
+          maxlength="25"
         />
         <button
           id="chat-button"
