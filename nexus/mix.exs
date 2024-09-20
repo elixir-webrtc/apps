@@ -51,8 +51,10 @@ defmodule Nexus.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
-      {:ex_webrtc, "~> 0.5.0"},
+      # {:ex_webrtc, "~> 0.5.0"},
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", branch: "fly", override: true},
       {:ex_webrtc_dashboard, "~> 0.5.0"},
+      {:ex_ice, github: "elixir-webrtc/ex_ice", branch: "keepalive", override: true},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

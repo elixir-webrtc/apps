@@ -109,7 +109,10 @@ defmodule Nexus.Peer do
   def init([id, channel, peer_ids]) do
     Logger.debug("Starting new peer #{id}")
     ice_port_range = Application.fetch_env!(:nexus, :ice_port_range)
-    pc_opts = @opts ++ [ice_port_range: ice_port_range]
+
+    ip_filter = Application.get_env(:nexus, :ice_ip_filter)
+    pc_opts = @opts ++ [ice_ip_filter: ip_filter, ice_port_range: ice_port_range]
+
     {:ok, pc} = PeerConnection.start_link(pc_opts)
     Process.monitor(pc)
     Logger.debug("Starting peer connection #{inspect(pc)}")

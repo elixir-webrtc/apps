@@ -33,6 +33,10 @@ if System.get_env("PHX_SERVER") do
   config :nexus, NexusWeb.Endpoint, server: true
 end
 
+if System.get_env("FLY_IO") do
+  config :nexus, ice_ip_filter: &ExWebRTC.ICE.FlyIpFilter.ip_filter/1
+end
+
 config :nexus, ice_port_range: read_ice_port_range!.()
 
 if config_env() == :prod do
