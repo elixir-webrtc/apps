@@ -6,10 +6,11 @@ defmodule Recognizer.Room do
   require Logger
 
   alias ExWebRTC.{ICECandidate, PeerConnection, RTPCodecParameters, SessionDescription}
-  alias ExWebRTC.RTP.Depayloader
+  alias ExWebRTC.RTP.{Depayloader, JitterBuffer}
 
   @max_session_time_s Application.compile_env!(:recognizer, :max_session_time_s)
   @session_time_timer_interval_ms 1_000
+  @jitter_buffer_latency_ms 50
 
   @video_codecs [
     %RTPCodecParameters{
@@ -53,6 +54,7 @@ defmodule Recognizer.Room do
        video_track: nil,
        video_depayloader: video_depayloader,
        video_decoder: Xav.Decoder.new(:vp8),
+       video_buffer: JitterBuffer.new(latency: @jitter_buffer_latency_ms),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
      }}
@@ -133,24 +135,9 @@ defmodule Recognizer.Room do
         {:ex_webrtc, _pc, {:rtp, track_id, nil, packet}},
         %{video_track: %{id: track_id}} = state
       ) do
-    {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
-    state = %{state | video_depayloader: depayloader}
-
-    with true <- is_nil(state.task),
-         false <- is_nil(frame),
-         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
-      tensor = Xav.Frame.to_nx(frame)
-      task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
-      state = %{state | task: task}
-      {:noreply, state}
-    else
-      other when other in [:ok, true, false] ->
-        {:noreply, state}
-
-      {:error, :no_keyframe} ->
-        Logger.warning("Couldn't decode video frame - missing keyframe!")
-        {:noreply, state}
-    end
+    state.video_buffer
+    |> JitterBuffer.insert(packet)
+    |> handle_jitter_buffer_result(state)
   end
 
   @impl true
@@ -160,6 +147,13 @@ defmodule Recognizer.Room do
       ) do
     # Do something fun with the audio!
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:jitter_buffer_timer, state) do
+    state.video_buffer
+    |> JitterBuffer.handle_timeout()
+    |> handle_jitter_buffer_result(state)
   end
 
   @impl true
@@ -206,5 +200,33 @@ defmodule Recognizer.Room do
   @impl true
   def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  defp handle_jitter_buffer_result({packets, timer, buffer}, state) do
+    unless is_nil(timer), do: Process.send_after(self(), :jitter_buffer_timer, timer)
+
+    state = Enum.reduce(packets, state, fn packet, state -> handle_packet(packet, state) end)
+
+    {:noreply, %{state | video_buffer: buffer}}
+  end
+
+  defp handle_packet(packet, state) do
+    {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
+    state = %{state | video_depayloader: depayloader}
+
+    with true <- is_nil(state.task),
+         false <- is_nil(frame),
+         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
+      tensor = Xav.Frame.to_nx(frame)
+      task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
+      %{state | task: task}
+    else
+      other when other in [:ok, true, false] ->
+        state
+
+      {:error, :no_keyframe} ->
+        Logger.warning("Couldn't decode video frame - missing keyframe!")
+        state
+    end
   end
 end
