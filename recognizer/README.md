@@ -26,7 +26,7 @@ docker run -e SECRET_KEY_BASE="secret" -e PHX_HOST=localhost --network host reco
 ```
 
 Note that secret has to be at least 64 bytes long.
-You can generate one with `mix phx.gen.secret`.
+You can generate one with `mix phx.gen.secret` or `head -c64 /dev/urandom | base64`.
 
 If you are running on MacOS, instead of using `--network host` option, you have to explicitly publish ports:
 

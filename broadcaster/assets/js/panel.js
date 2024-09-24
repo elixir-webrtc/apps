@@ -105,7 +105,27 @@ function enableControls() {
 async function startStreaming() {
   disableControls();
 
+  const candidates = [];
+  let patchEndpoint = undefined;
   pc = new RTCPeerConnection();
+
+  pc.onicegatheringstatechange = () =>
+    console.log('Gathering state change:', pc.iceGatheringState);
+  pc.onconnectionstatechange = () =>
+    console.log('Connection state change:', pc.connectionState);
+  pc.onicecandidate = (event) => {
+    if (event.candidate == null) {
+      return;
+    }
+
+    const candidate = JSON.stringify(event.candidate);
+    if (patchEndpoint === undefined) {
+      candidates.push(candidate);
+    } else {
+      sendCandidate(patchEndpoint, candidate);
+    }
+  };
+
   pc.addTrack(localStream.getAudioTracks()[0], localStream);
   const { sender: videoSender } = pc.addTransceiver(
     localStream.getVideoTracks()[0],
@@ -145,6 +165,13 @@ async function startStreaming() {
     });
 
     if (response.status == 201) {
+      patchEndpoint = response.headers.get('location');
+      console.log('Successfully initialized WHIP connection');
+
+      for (const candidate of candidates) {
+        sendCandidate(patchEndpoint, candidate);
+      }
+
       const sdp = await response.text();
       await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
       button.innerText = 'Stop Streaming';
@@ -160,6 +187,26 @@ async function startStreaming() {
     pc.close();
     pc = undefined;
     enableControls();
+  }
+}
+
+async function sendCandidate(patchEndpoint, candidate) {
+  const response = await fetch(patchEndpoint, {
+    method: 'PATCH',
+    cache: 'no-cache',
+    headers: {
+      'Content-Type': 'application/trickle-ice-sdpfrag',
+    },
+    body: candidate,
+  });
+
+  if (response.status === 204) {
+    console.log(`Successfully sent ICE candidate:`, candidate);
+  } else {
+    console.error(
+      `Failed to send ICE, status: ${response.status}, candidate:`,
+      candidate
+    );
   }
 }
 

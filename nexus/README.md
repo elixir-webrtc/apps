@@ -30,7 +30,7 @@ and run:
 
 ```
 docker run \
-    -e SECRET_KEY_BASE="secert" \
+    -e SECRET_KEY_BASE="secret" \
     -e PHX_HOST=localhost \
     -e ADMIN_USERNAME=admin \
     -e ADMIN_PASSWORD=admin \
@@ -39,13 +39,13 @@ docker run \
 ```
 
 Note that secret has to be at least 64 bytes long.
-You can generate one with `mix phx.gen.secret`.
+You can generate one with `mix phx.gen.secret` or `head -c64 /dev/urandom | base64`.
 
 If you are running on MacOS, instead of using `--network host` option, you have to explicitly publish ports:
 
 ```
 docker run \
-    -e SECRET_KEY_BASE="secert" \
+    -e SECRET_KEY_BASE="secret" \
     -e PHX_HOST=localhost \
     -e ADMIN_USERNAME=admin \
     -e ADMIN_PASSWORD=admin \
