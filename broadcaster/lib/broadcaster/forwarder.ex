@@ -12,6 +12,10 @@ defmodule Broadcaster.Forwarder do
   alias Broadcaster.PeerSupervisor
   alias BroadcasterWeb.Channel
 
+  # Timeout for removing inputs/outputs that fail to connect
+  @connect_timeout_s 15
+  @connect_timeout_ms @connect_timeout_s * 1000
+
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(_arg) do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
@@ -45,6 +49,7 @@ defmodule Broadcaster.Forwarder do
   @impl true
   def init(_arg) do
     state = %{
+      pending_inputs: %{},
       inputs: %{},
       pending_outputs: %{},
       outputs: %{}
@@ -90,20 +95,12 @@ defmodule Broadcaster.Forwarder do
     Process.monitor(pc)
 
     PeerConnection.controlling_process(pc, self())
-    {audio_track, video_track} = get_tracks(pc, :receiver)
+    pending_inputs = Map.put(state.pending_inputs, pc, id)
 
     Logger.info("Added new input #{id} (#{inspect(pc)})")
+    Process.send_after(self(), {:connect_timeout, pc}, @connect_timeout_ms)
 
-    input = %{
-      id: id,
-      video: video_track.id,
-      audio: audio_track.id,
-      available_layers: video_track.rids
-    }
-
-    state = put_in(state, [:inputs, pc], input)
-
-    {:reply, :ok, state}
+    {:reply, :ok, %{state | pending_inputs: pending_inputs}}
   end
 
   @impl true
@@ -114,16 +111,49 @@ defmodule Broadcaster.Forwarder do
     pending_outputs = Map.put(state.pending_outputs, pc, id)
 
     Logger.info("Added new output #{inspect(pc)} for input #{inspect(id)}")
+    Process.send_after(self(), {:connect_timeout, pc}, @connect_timeout_ms)
 
     {:reply, :ok, %{state | pending_outputs: pending_outputs}}
   end
 
   @impl true
-  def handle_info({:ex_webrtc, pc, {:connection_state_change, :connected}}, state)
-      when is_map_key(state.inputs, pc) do
-    id = get_in(state, [:inputs, pc, :id])
-    Logger.info("Input #{id} (#{inspect(pc)}) has successfully connected")
+  def handle_info({:connect_timeout, pc}, state) do
+    direction =
+      cond do
+        Map.has_key?(state.pending_inputs, pc) -> :input
+        Map.has_key?(state.pending_outputs, pc) -> :output
+        true -> nil
+      end
 
+    unless is_nil(direction) do
+      Logger.warning("""
+      Terminating #{direction} #{inspect(pc)} \
+      because it didn't connect within #{@connect_timeout_s} seconds \
+      """)
+
+      PeerSupervisor.terminate_pc(pc)
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:ex_webrtc, pc, {:connection_state_change, :connected}}, state)
+      when is_map_key(state.pending_inputs, pc) do
+    {id, state} = pop_in(state, [:pending_inputs, pc])
+
+    {audio_track, video_track} = get_tracks(pc, :receiver)
+
+    input = %{
+      id: id,
+      video: video_track.id,
+      audio: audio_track.id,
+      available_layers: video_track.rids
+    }
+
+    state = put_in(state, [:inputs, pc], input)
+
+    Logger.info("Input #{id} (#{inspect(pc)}) has successfully connected")
     Channel.stream_added(id)
 
     {:noreply, state}
@@ -149,9 +179,17 @@ defmodule Broadcaster.Forwarder do
 
           PeerSupervisor.terminate_pc(pc)
 
+          # Re-add to pending outputs, so that `:DOWN` gets handled properly
           put_in(state, [:pending_outputs, pc], input_id)
       end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:ex_webrtc, pc, {:connection_state_change, :failed}}, state) do
+    Logger.warning("Peer connection #{inspect(pc)} state changed to `failed`. Terminating")
+    PeerSupervisor.terminate_pc(pc)
     {:noreply, state}
   end
 
@@ -204,7 +242,7 @@ defmodule Broadcaster.Forwarder do
     {input, state} = pop_in(state, [:inputs, pid])
 
     Logger.info(
-      "Input #{input.id}: process #{inspect(pid)} exited with reason: #{inspect(reason)}"
+      "Input #{input.id}: process #{inspect(pid)} exited with reason #{inspect(reason)}"
     )
 
     for {pc, %{input_id: input_id}} <- state.outputs do
@@ -219,6 +257,16 @@ defmodule Broadcaster.Forwarder do
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
     cond do
+      Map.has_key?(state.pending_inputs, pid) ->
+        {id, state} = pop_in(state, [:pending_inputs, pid])
+
+        Logger.info("""
+        Pending input #{id}: process #{inspect(pid)} \
+        exited with reason #{inspect(reason)} \
+        """)
+
+        {:noreply, state}
+
       Map.has_key?(state.outputs, pid) ->
         {output, state} = pop_in(state, [:outputs, pid])
 
