@@ -5,6 +5,8 @@ defmodule Broadcaster.Forwarder do
 
   require Logger
 
+  alias Phoenix.PubSub
+
   alias ExWebRTC.PeerConnection
   alias ExWebRTC.RTP.H264
   alias ExWebRTC.RTP.Munger
@@ -12,9 +14,48 @@ defmodule Broadcaster.Forwarder do
   alias Broadcaster.PeerSupervisor
   alias BroadcasterWeb.Channel
 
+  @pubsub Broadcaster.PubSub
   # Timeout for removing inputs/outputs that fail to connect
   @connect_timeout_s 15
   @connect_timeout_ms @connect_timeout_s * 1000
+
+  @type id :: String.t()
+
+  @type input_spec :: %{
+          id: id(),
+          video: String.t() | nil,
+          audio: String.t() | nil,
+          available_layers: [String.t()] | nil
+        }
+
+  @type output_spec :: %{
+          input_id: id(),
+          video: String.t() | nil,
+          audio: String.t() | nil,
+          munger: Munger.t(),
+          layer: String.t() | nil,
+          pending_layer: String.t() | nil
+        }
+
+  @type remote_input_spec :: %{
+          id: id(),
+          node: node(),
+          available_layers: [String.t()] | nil
+        }
+
+  @type state :: %{
+          # WHIP
+          pending_inputs: %{pid() => id()},
+          inputs: %{pid() => input_spec()},
+
+          # WHEP
+          # Each output corresponds to one input with given ID
+          pending_outputs: %{pid() => input_id :: id()},
+          outputs: %{pid() => output_spec()},
+
+          # Cluster
+          remote_inputs: %{id() => remote_input_spec()}
+        }
 
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(_arg) do
@@ -31,19 +72,29 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, {:get_layers, pc})
   end
 
-  @spec connect_input(pid(), String.t()) :: :ok
+  @spec connect_input(pid(), id()) :: :ok
   def connect_input(pc, id) do
     GenServer.call(__MODULE__, {:connect_input, id, pc})
   end
 
-  @spec connect_output(pid(), String.t()) :: :ok
-  def connect_output(pc, stream_id) do
-    GenServer.call(__MODULE__, {:connect_output, stream_id, pc})
+  @spec connect_output(pid(), id()) :: :ok
+  def connect_output(pc, input_id) do
+    GenServer.call(__MODULE__, {:connect_output, input_id, pc})
   end
 
-  @spec streams() :: [String.t()]
-  def streams() do
-    GenServer.call(__MODULE__, :streams)
+  @spec input_ids() :: [id()]
+  def input_ids() do
+    GenServer.call(__MODULE__, :input_ids)
+  end
+
+  @spec local_inputs() :: [input_spec()]
+  def local_inputs() do
+    GenServer.call(__MODULE__, :local_inputs)
+  end
+
+  @spec send_pli(id(), String.t() | nil) :: :ok
+  def send_pli(id, layer) do
+    GenServer.cast(__MODULE__, {:send_pli, id, layer})
   end
 
   @impl true
@@ -52,15 +103,45 @@ defmodule Broadcaster.Forwarder do
       pending_inputs: %{},
       inputs: %{},
       pending_outputs: %{},
-      outputs: %{}
+      outputs: %{},
+      remote_inputs: %{}
     }
 
-    {:ok, state}
+    {:ok, state, {:continue, :after_init}}
   end
 
   @impl true
-  def handle_call(:streams, _from, state) do
-    {:reply, Enum.map(state.inputs, fn {_pc, input} -> input.id end), state}
+  def handle_continue(:after_init, state) do
+    # Get remote inputs already present in cluster
+    nodes = Node.list()
+
+    nodes
+    |> :erpc.multicall(__MODULE__, :local_inputs, [], 5000)
+    |> Enum.zip(nodes)
+    |> Enum.each(fn
+      {{:ok, inputs}, node} ->
+        Enum.each(inputs, &send(self(), {:cluster, node, {:input_added, &1}}))
+
+      _err ->
+        :ok
+    end)
+
+    PubSub.subscribe(@pubsub, "cluster:inputs")
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_call(:input_ids, _from, state) do
+    local_ids = Enum.map(state.inputs, fn {_pc, input} -> input.id end)
+    remote_ids = Map.keys(state.remote_inputs)
+
+    {:reply, local_ids ++ remote_ids, state}
+  end
+
+  @impl true
+  def handle_call(:local_inputs, _from, state) do
+    {:reply, Map.values(state.inputs), state}
   end
 
   @impl true
@@ -72,7 +153,7 @@ defmodule Broadcaster.Forwarder do
       output = %{output | pending_layer: layer}
       state = %{state | outputs: Map.put(state.outputs, pc, output)}
 
-      :ok = PeerConnection.send_pli(input_pc, input.video, layer)
+      do_send_pli(input_pc, input, layer)
 
       {:reply, :ok, state}
     else
@@ -117,6 +198,16 @@ defmodule Broadcaster.Forwarder do
   end
 
   @impl true
+  def handle_cast({:send_pli, id, layer}, state) do
+    with {:ok, input_pc, input} <- find_input(id, state),
+         true <- is_pid(input_pc) do
+      PeerConnection.send_pli(input_pc, input.video, layer)
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info({:connect_timeout, pc}, state) do
     direction =
       cond do
@@ -154,7 +245,15 @@ defmodule Broadcaster.Forwarder do
     state = put_in(state, [:inputs, pc], input)
 
     Logger.info("Input #{id} (#{inspect(pc)}) has successfully connected")
-    Channel.stream_added(id)
+    Channel.input_added(id)
+
+    # ID collisions in the cluster are unlikely and thus will not be checked against
+    PubSub.broadcast_from(
+      @pubsub,
+      self(),
+      "cluster:inputs",
+      {:cluster, Node.self(), {:input_added, input}}
+    )
 
     {:noreply, state}
   end
@@ -201,13 +300,11 @@ defmodule Broadcaster.Forwarder do
     state =
       cond do
         input_track == input.audio and rid == nil ->
-          for {pc, output} <- state.outputs do
-            if output.input_id == input.id, do: PeerConnection.send_rtp(pc, output.audio, packet)
-          end
-
-          state
+          PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input.id, :audio, nil, packet})
+          forward_audio_packet(packet, input.id, state)
 
         input_track == input.video ->
+          PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input.id, :video, rid, packet})
           forward_video_packet(packet, input.id, rid, state)
 
         true ->
@@ -224,14 +321,72 @@ defmodule Broadcaster.Forwarder do
          {:ok, input_pc, input} <- find_input(input_id, state) do
       for packet <- packets do
         case packet do
-          {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
-            :ok = PeerConnection.send_pli(input_pc, input.video, layer)
-
-          _other ->
-            :ok
+          {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} -> do_send_pli(input_pc, input, layer)
+          _other -> :ok
         end
       end
     end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:cluster, node, {:input_added, input}}, state)
+      when not is_map_key(state.remote_inputs, input.id) do
+    Logger.info("Remote input #{input.id} added (node #{node})")
+    PubSub.subscribe(@pubsub, "input:#{input.id}")
+
+    remote_input = %{
+      id: input.id,
+      node: node,
+      available_layers: input.available_layers
+    }
+
+    state = put_in(state, [:remote_inputs, input.id], remote_input)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:cluster, node, {:input_removed, id}}, state)
+      when is_map_key(state.remote_inputs, id) do
+    Logger.info("Remote input #{id} removed (node #{node})")
+    PubSub.unsubscribe(@pubsub, "input:#{id}")
+
+    {_input, state} = pop_in(state, [:remote_inputs, id])
+
+    for {pc, %{input_id: input_id}} <- state.outputs do
+      if input_id == id, do: PeerSupervisor.terminate_pc(pc)
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:cluster, node, msg}, state) do
+    Logger.warning("""
+    Unexpected message from node #{node}: #{inspect(msg)}. \
+    Cluster state may be inconsistent. \
+    Known remote inputs: #{inspect(state.remote_inputs)}
+    """)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:input, id, kind, rid, packet}, state)
+      when is_map_key(state.remote_inputs, id) do
+    state =
+      cond do
+        kind == :audio and rid == nil ->
+          forward_audio_packet(packet, id, state)
+
+        kind == :video ->
+          forward_video_packet(packet, id, rid, state)
+
+        true ->
+          Logger.warning("Received an RTP packet corresponding to unknown remote track. Ignoring")
+          state
+      end
 
     {:noreply, state}
   end
@@ -249,7 +404,14 @@ defmodule Broadcaster.Forwarder do
       if input_id == input.id, do: PeerSupervisor.terminate_pc(pc)
     end
 
-    Channel.stream_removed(input.id)
+    Channel.input_removed(input.id)
+
+    PubSub.broadcast_from(
+      @pubsub,
+      self(),
+      "cluster:inputs",
+      {:cluster, Node.self(), {:input_removed, input.id}}
+    )
 
     {:noreply, state}
   end
@@ -351,6 +513,14 @@ defmodule Broadcaster.Forwarder do
     %{state | outputs: outputs}
   end
 
+  defp forward_audio_packet(packet, input_id, state) do
+    for {pc, output} <- state.outputs do
+      if output.input_id == input_id, do: PeerConnection.send_rtp(pc, output.audio, packet)
+    end
+
+    state
+  end
+
   defp get_tracks(pc, type) do
     transceivers = PeerConnection.get_transceivers(pc)
     audio_transceiver = Enum.find(transceivers, fn tr -> tr.kind == :audio end)
@@ -365,10 +535,19 @@ defmodule Broadcaster.Forwarder do
   defp default_layer(%{available_layers: nil}), do: nil
   defp default_layer(%{available_layers: [first | _]}), do: first
 
-  defp find_input(id, %{inputs: inputs}) do
-    case Enum.find(inputs, fn {_pc, input} -> input.id == id end) do
-      {input_pc, input} -> {:ok, input_pc, input}
-      nil -> {:error, :not_found}
+  defp find_input(id, %{inputs: inputs, remote_inputs: remote_inputs}) do
+    with nil <- Enum.find(inputs, fn {_pc, input} -> input.id == id end),
+         nil <- Enum.find(remote_inputs, fn {input_id, _input} -> input_id == id end) do
+      {:error, :not_found}
+    else
+      {input_pc, input} when is_pid(input_pc) -> {:ok, input_pc, input}
+      {_id, remote_input} -> {:ok, :remote, remote_input}
     end
   end
+
+  defp do_send_pli(:remote, %{node: node, id: id}, layer),
+    do: :erpc.cast(node, __MODULE__, :send_pli, [id, layer])
+
+  defp do_send_pli(pc, %{video: video_track}, layer),
+    do: PeerConnection.send_pli(pc, video_track, layer)
 end
