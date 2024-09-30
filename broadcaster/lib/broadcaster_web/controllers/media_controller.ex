@@ -35,11 +35,11 @@ defmodule BroadcasterWeb.MediaController do
   end
 
   def whep(conn, params) do
-    stream_id = params["streamId"]
+    input_id = params["inputId"]
 
     with {:ok, offer_sdp, conn} <- read_body(conn),
          {:ok, pc, pc_id, answer_sdp} <- PeerSupervisor.start_whep(offer_sdp),
-         :ok <- Forwarder.connect_output(pc, stream_id) do
+         :ok <- Forwarder.connect_output(pc, input_id) do
       uri = ~p"/api/resource/#{pc_id}"
 
       conn

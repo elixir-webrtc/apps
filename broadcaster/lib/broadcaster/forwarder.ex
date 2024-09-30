@@ -21,7 +21,7 @@ defmodule Broadcaster.Forwarder do
 
   @type id :: String.t()
 
-  @type input_spec :: %{
+  @type local_input_spec :: %{
           id: id(),
           video: String.t() | nil,
           audio: String.t() | nil,
@@ -46,15 +46,13 @@ defmodule Broadcaster.Forwarder do
   @type state :: %{
           # WHIP
           pending_inputs: %{pid() => id()},
-          inputs: %{pid() => input_spec()},
+          local_inputs: %{pid() => local_input_spec()},
+          remote_inputs: %{id() => remote_input_spec()},
 
           # WHEP
           # Each output corresponds to one input with given ID
           pending_outputs: %{pid() => input_id :: id()},
-          outputs: %{pid() => output_spec()},
-
-          # Cluster
-          remote_inputs: %{id() => remote_input_spec()}
+          outputs: %{pid() => output_spec()}
         }
 
   @spec start_link(any()) :: GenServer.on_start()
@@ -87,7 +85,7 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, :input_ids)
   end
 
-  @spec local_inputs() :: [input_spec()]
+  @spec local_inputs() :: [local_input_spec()]
   def local_inputs() do
     GenServer.call(__MODULE__, :local_inputs)
   end
@@ -101,10 +99,10 @@ defmodule Broadcaster.Forwarder do
   def init(_arg) do
     state = %{
       pending_inputs: %{},
-      inputs: %{},
+      local_inputs: %{},
+      remote_inputs: %{},
       pending_outputs: %{},
-      outputs: %{},
-      remote_inputs: %{}
+      outputs: %{}
     }
 
     {:ok, state, {:continue, :after_init}}
@@ -126,14 +124,14 @@ defmodule Broadcaster.Forwarder do
         :ok
     end)
 
-    PubSub.subscribe(@pubsub, "cluster:inputs")
+    PubSub.subscribe(@pubsub, "inputs")
 
     {:noreply, state}
   end
 
   @impl true
   def handle_call(:input_ids, _from, state) do
-    local_ids = Enum.map(state.inputs, fn {_pc, input} -> input.id end)
+    local_ids = Enum.map(state.local_inputs, fn {_pc, input} -> input.id end)
     remote_ids = Map.keys(state.remote_inputs)
 
     {:reply, local_ids ++ remote_ids, state}
@@ -141,7 +139,7 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_call(:local_inputs, _from, state) do
-    {:reply, Map.values(state.inputs), state}
+    {:reply, Map.values(state.local_inputs), state}
   end
 
   @impl true
@@ -242,7 +240,7 @@ defmodule Broadcaster.Forwarder do
       available_layers: video_track.rids
     }
 
-    state = put_in(state, [:inputs, pc], input)
+    state = put_in(state, [:local_inputs, pc], input)
 
     Logger.info("Input #{id} (#{inspect(pc)}) has successfully connected")
     Channel.input_added(id)
@@ -251,7 +249,7 @@ defmodule Broadcaster.Forwarder do
     PubSub.broadcast_from(
       @pubsub,
       self(),
-      "cluster:inputs",
+      "inputs",
       {:cluster, Node.self(), {:input_added, input}}
     )
 
@@ -264,7 +262,7 @@ defmodule Broadcaster.Forwarder do
     {input_id, state} = pop_in(state, [:pending_outputs, pc])
 
     # Fill default ID
-    input_id = input_id || state.inputs |> Map.values() |> List.first() |> then(& &1[:id])
+    input_id = input_id || state.local_inputs |> Map.values() |> List.first() |> then(& &1[:id])
 
     state =
       case find_input(input_id, state) do
@@ -294,8 +292,8 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_info({:ex_webrtc, input_pc, {:rtp, input_track, rid, packet}}, state)
-      when is_map_key(state.inputs, input_pc) do
-    input = Map.get(state.inputs, input_pc)
+      when is_map_key(state.local_inputs, input_pc) do
+    input = Map.get(state.local_inputs, input_pc)
 
     state =
       cond do
@@ -393,8 +391,8 @@ defmodule Broadcaster.Forwarder do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, reason}, state)
-      when is_map_key(state.inputs, pid) do
-    {input, state} = pop_in(state, [:inputs, pid])
+      when is_map_key(state.local_inputs, pid) do
+    {input, state} = pop_in(state, [:local_inputs, pid])
 
     Logger.info(
       "Input #{input.id}: process #{inspect(pid)} exited with reason #{inspect(reason)}"
@@ -409,7 +407,7 @@ defmodule Broadcaster.Forwarder do
     PubSub.broadcast_from(
       @pubsub,
       self(),
-      "cluster:inputs",
+      "inputs",
       {:cluster, Node.self(), {:input_removed, input.id}}
     )
 
@@ -535,8 +533,8 @@ defmodule Broadcaster.Forwarder do
   defp default_layer(%{available_layers: nil}), do: nil
   defp default_layer(%{available_layers: [first | _]}), do: first
 
-  defp find_input(id, %{inputs: inputs, remote_inputs: remote_inputs}) do
-    with nil <- Enum.find(inputs, fn {_pc, input} -> input.id == id end),
+  defp find_input(id, %{local_inputs: local_inputs, remote_inputs: remote_inputs}) do
+    with nil <- Enum.find(local_inputs, fn {_pc, input} -> input.id == id end),
          nil <- Enum.find(remote_inputs, fn {input_id, _input} -> input_id == id end) do
       {:error, :not_found}
     else
