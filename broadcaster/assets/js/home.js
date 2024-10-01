@@ -83,8 +83,11 @@ async function connectInput(id) {
     videoPlayerWrapper.appendChild(videoPlayer);
     inputData.videoPlayer = videoPlayer;
     updateVideoGrid();
-    whepClient.changeLayer(defaultLayer);
     statusMessage.classList.add('hidden');
+  };
+
+  whepClient.onconnected = () => {
+    whepClient.changeLayer(defaultLayer);
   };
 
   whepClient.connect();

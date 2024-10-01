@@ -7,6 +7,7 @@ export class WHEPClient {
     this.pc = undefined;
     this.patchEndpoint = undefined;
     this.onstream = undefined;
+    this.onconnected = undefined;
   }
 
   async connect() {
@@ -32,8 +33,14 @@ export class WHEPClient {
         `[${this.id}]: Gathering state change:`,
         pc.iceGatheringState
       );
-    pc.onconnectionstatechange = () =>
+
+    pc.onconnectionstatechange = () => {
       console.log(`[${this.id}]: Connection state change:`, pc.connectionState);
+      if (pc.connectionState === 'connected' && this.onconnected) {
+        this.onconnected();
+      }
+    };
+
     pc.onicecandidate = (event) => {
       if (event.candidate == null) {
         return;
