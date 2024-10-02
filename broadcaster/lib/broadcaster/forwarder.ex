@@ -85,11 +85,6 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, :local_inputs)
   end
 
-  @spec send_pli(id(), String.t() | nil) :: :ok
-  def send_pli(id, layer) do
-    GenServer.cast(__MODULE__, {:send_pli, id, layer})
-  end
-
   @impl true
   def init(_arg) do
     state = %{
@@ -185,15 +180,6 @@ defmodule Broadcaster.Forwarder do
     Process.send_after(self(), {:connect_timeout, pc}, @connect_timeout_ms)
 
     {:reply, :ok, %{state | pending_outputs: pending_outputs}}
-  end
-
-  @impl true
-  def handle_cast({:send_pli, id, layer}, state) do
-    with {:ok, input} <- find_input(id, state) do
-      PeerConnection.send_pli(input.pc, input.video, layer)
-    end
-
-    {:noreply, state}
   end
 
   @impl true
