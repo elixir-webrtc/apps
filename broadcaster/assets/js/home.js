@@ -12,38 +12,38 @@ const videoPlayerWrapper = document.getElementById('videoplayer-grid');
 const statusMessage = document.getElementById('status-message');
 
 const whepEndpointBase = `${window.location.origin}/api/whep`;
-const streamsData = new Map();
+const inputsData = new Map();
 let defaultLayer = 'h';
 
 async function connectSignaling(socket) {
   const channel = socket.channel('broadcaster:signaling');
 
-  channel.on('stream_added', ({ id: id }) => {
-    console.log('New stream:', id);
-    connectStream(id);
+  channel.on('input_added', ({ id: id }) => {
+    console.log('New input:', id);
+    connectInput(id);
   });
 
-  channel.on('stream_removed', ({ id: id }) => {
-    console.log('Stream ended:', id);
-    removeStream(id);
+  channel.on('input_removed', ({ id: id }) => {
+    console.log('Input removed:', id);
+    removeInput(id);
   });
 
   channel
     .join()
-    .receive('ok', ({ streams: streams }) => {
+    .receive('ok', ({ inputs: inputs }) => {
       console.log(
-        'Joined signaling channel successfully\nAvailable streams:',
-        streams
+        'Joined signaling channel successfully\nAvailable inputs:',
+        inputs
       );
 
-      if (streams.length === 0) {
+      if (inputs.length === 0) {
         statusMessage.innerText =
           'Connected. Waiting for the stream to begin...';
         statusMessage.classList.remove('hidden');
       }
 
-      for (const id of streams) {
-        connectStream(id);
+      for (const id of inputs) {
+        connectInput(id);
       }
     })
     .receive('error', (resp) => {
@@ -58,20 +58,20 @@ async function connectSignaling(socket) {
     });
 }
 
-async function connectStream(streamId) {
-  const whepEndpoint = whepEndpointBase + '?streamId=' + streamId;
+async function connectInput(id) {
+  const whepEndpoint = whepEndpointBase + '?inputId=' + id;
   const whepClient = new WHEPClient(whepEndpoint);
 
-  const streamData = {
+  const inputData = {
     whepClient: whepClient,
     videoPlayer: undefined,
   };
-  streamsData.set(streamId, streamData);
+  inputsData.set(id, inputData);
 
-  whepClient.id = streamId;
+  whepClient.id = id;
 
   whepClient.onstream = (stream) => {
-    console.log(`[${streamId}]: Creating new video element`);
+    console.log(`[${id}]: Creating new video element`);
 
     const videoPlayer = document.createElement('video');
     videoPlayer.srcObject = stream;
@@ -81,29 +81,32 @@ async function connectStream(streamId) {
     videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
 
     videoPlayerWrapper.appendChild(videoPlayer);
-    streamData.videoPlayer = videoPlayer;
+    inputData.videoPlayer = videoPlayer;
     updateVideoGrid();
-    whepClient.changeLayer(defaultLayer);
     statusMessage.classList.add('hidden');
+  };
+
+  whepClient.onconnected = () => {
+    whepClient.changeLayer(defaultLayer);
   };
 
   whepClient.connect();
 }
 
-async function removeStream(streamId) {
-  const streamData = streamsData.get(streamId);
-  streamsData.delete(streamId);
+async function removeInput(id) {
+  const inputData = inputsData.get(id);
+  inputsData.delete(id);
 
-  if (streamData) {
-    streamData.whepClient.disconnect();
+  if (inputData) {
+    inputData.whepClient.disconnect();
 
-    if (streamData.videoPlayer) {
-      videoPlayerWrapper.removeChild(streamData.videoPlayer);
+    if (inputData.videoPlayer) {
+      videoPlayerWrapper.removeChild(inputData.videoPlayer);
       updateVideoGrid();
     }
   }
 
-  if (streamsData.size === 0) {
+  if (inputsData.size === 0) {
     statusMessage.innerText = 'Connected. Waiting for the stream to begin...';
     statusMessage.classList.remove('hidden');
   }
@@ -112,7 +115,7 @@ async function removeStream(streamId) {
 async function setDefaultLayer(layer) {
   if (defaultLayer !== layer) {
     defaultLayer = layer;
-    for (const { whepClient: whepClient } of streamsData.values()) {
+    for (const { whepClient: whepClient } of inputsData.values()) {
       whepClient.changeLayer(layer);
     }
   }

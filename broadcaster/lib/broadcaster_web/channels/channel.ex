@@ -5,14 +5,14 @@ defmodule BroadcasterWeb.Channel do
 
   alias BroadcasterWeb.{Endpoint, Presence}
 
-  @spec stream_added(String.t()) :: :ok
-  def stream_added(id) do
-    Endpoint.broadcast!("broadcaster:signaling", "stream_added", %{id: id})
+  @spec input_added(String.t()) :: :ok
+  def input_added(id) do
+    Endpoint.broadcast!("broadcaster:signaling", "input_added", %{id: id})
   end
 
-  @spec stream_removed(String.t()) :: :ok
-  def stream_removed(id) do
-    Endpoint.broadcast!("broadcaster:signaling", "stream_removed", %{id: id})
+  @spec input_removed(String.t()) :: :ok
+  def input_removed(id) do
+    Endpoint.broadcast!("broadcaster:signaling", "input_removed", %{id: id})
   end
 
   @max_nickname_length 25
@@ -20,7 +20,7 @@ defmodule BroadcasterWeb.Channel do
 
   @impl true
   def join("broadcaster:signaling", _, socket) do
-    msg = %{streams: Broadcaster.Forwarder.streams()}
+    msg = %{inputs: Broadcaster.Forwarder.input_ids()}
     {:ok, msg, socket}
   end
 

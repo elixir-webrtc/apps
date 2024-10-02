@@ -1,0 +1,56 @@
+# Sample containerised cluster setup with two nodes
+
+x-broadcaster-template: &broadcaster-template
+  build:
+    context: .
+  environment: &broadcaster-environment
+    SECRET_KEY_BASE: "ijoI13mbV5eRw1/5ckBEBMSOdYSkY69mpuwLgooBYGWLx3bd2yldOBLP/46/mm9d"
+    PHX_HOST: localhost
+    WHIP_TOKEN: token
+    ADMIN_USERNAME: admin
+    ADMIN_PASSWORD: admin
+    RELEASE_DISTRIBUTION: name
+    RELEASE_COOKIE: super-secret-cookie
+    DNS_CLUSTER_QUERY: app.dns-network
+  restart: on-failure
+
+name: broadcaster-dist
+services:
+  app1:
+    <<: *broadcaster-template
+    environment:
+      <<: *broadcaster-environment
+      PORT: 4001
+      RELEASE_NODE: "broadcaster@10.0.0.11"
+      ICE_PORT_RANGE: "51100-51199"
+    ports:
+      - 4001:4001
+      - "51100-51199/udp"
+    networks:
+      net0:
+        ipv4_address: 10.0.0.11
+        aliases:
+          - app.dns-network
+
+  app2:
+    <<: *broadcaster-template
+    environment:
+      <<: *broadcaster-environment
+      PORT: 4002
+      RELEASE_NODE: "broadcaster@10.0.0.12"
+      ICE_PORT_RANGE: "51200-51299"
+    ports:
+      - 4002:4002
+      - "51200-51299/udp"
+    networks:
+      net0:
+        ipv4_address: 10.0.0.12
+        aliases:
+          - app.dns-network
+
+networks:
+  net0:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.0.0/24
