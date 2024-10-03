@@ -1,5 +1,5 @@
 <div id="panel" phx-hook="Panel" class="h-full flex justify-between gap-6">
-  <div class="flex flex-col gap-7">
+  <div class="flex flex-col gap-7 w-full overflow-y-scroll">
     <details class="details">
       <summary class="font-bold">Devices</summary>
       <div class="summary-content flex flex-col gap-6">
@@ -119,10 +119,8 @@
         Start streaming
       </button>
     </div>
-    <div id="videoplayer-wrapper" class="flex flex-1 flex-col min-h-0 gap-4">
-      <video id="previewPlayer" class="m-auto rounded-lg bg-black h-full" autoplay controls muted>
-      </video>
-    </div>
+    <video id="previewPlayer" class="max-w-[640px] rounded-lg bg-black" autoplay controls muted>
+    </video>
   </div>
   <div
     id="chat"
