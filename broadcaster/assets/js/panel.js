@@ -16,6 +16,17 @@ const autoGainControl = document.getElementById('autoGainControl');
 const noiseSuppression = document.getElementById('noiseSuppression');
 const saveStreamConfigButton = document.getElementById('save-stream-config');
 
+const audioBitrate = document.getElementById('audio-bitrate');
+const videoBitrate = document.getElementById('video-bitrate');
+const packetLoss = document.getElementById('packet-loss');
+const time = document.getElementById('time');
+const status = document.getElementById('status');
+
+let lastAudioReport = undefined;
+let lastVideoReport = undefined;
+let statsIntervalId = undefined;
+let startTime = undefined;
+
 const mediaConstraints = {
   video: {
     width: { ideal: 1280 },
@@ -111,8 +122,99 @@ async function startStreaming() {
 
   pc.onicegatheringstatechange = () =>
     console.log('Gathering state change:', pc.iceGatheringState);
-  pc.onconnectionstatechange = () =>
+  pc.onconnectionstatechange = () => {
     console.log('Connection state change:', pc.connectionState);
+    if (pc.connectionState === "connected") {
+      startTime = new Date();
+      status.classList.remove("bg-red-500");
+      // TODO use tailwind
+      status.style.backgroundColor = "rgb(34, 197, 94)";
+
+      statsIntervalId = setInterval(async function () {
+        if (!pc) {
+          clearInterval(statsIntervalId);
+          statsIntervalId = undefined;
+          return;
+        }
+
+        time.innerText = toHHMMSS(new Date() - startTime);
+
+        const stats = await pc.getStats(null);
+        let bitrate;
+
+        stats.forEach((report) => {
+          if (report.type === "outbound-rtp" && report.kind === "video") {
+            if (!lastVideoReport) {
+              bitrate = (report.bytesSent * 8) / 1000;
+            } else {
+              const timeDiff =
+                (report.timestamp - lastVideoReport.timestamp) / 1000;
+              if (timeDiff == 0) {
+                // this should never happen as we are getting stats every second
+                bitrate = 0;
+              } else {
+                bitrate =
+                  ((report.bytesSent - lastVideoReport.bytesSent) *
+                    8) /
+                  timeDiff;
+              }
+            }
+
+            videoBitrate.innerText = (bitrate / 1000).toFixed();
+            lastVideoReport = report;
+          } else if (
+            report.type === "outbound-rtp" &&
+            report.kind === "audio"
+          ) {
+            if (!lastAudioReport) {
+              bitrate = report.bytesSent;
+            } else {
+              const timeDiff =
+                (report.timestamp - lastAudioReport.timestamp) / 1000;
+              if (timeDiff == 0) {
+                // this should never happen as we are getting stats every second
+                bitrate = 0;
+              } else {
+                bitrate =
+                  ((report.bytesSent - lastAudioReport.bytesSent) *
+                    8) /
+                  timeDiff;
+              }
+            }
+
+            audioBitrate.innerText = (bitrate / 1000).toFixed();
+            lastAudioReport = report;
+          }
+        });
+
+        // calculate packet loss
+        if (!lastAudioReport || !lastVideoReport) {
+          packetLoss.innerText = 0;
+        } else {
+          const packetsSent =
+            lastVideoReport.packetsSent +
+            lastAudioReport.packetsSent;
+          const rtxPacketsSent =
+            lastVideoReport.retransmittedPacketsSent +
+            lastAudioReport.retransmittedPacketsSent;
+          const nackReceived =
+            lastVideoReport.nackCount + lastAudioReport.nackCount;
+
+          if (nackReceived == 0) {
+            packetLoss.innerText = 0;
+          } else {
+            packetLoss.innerText = (
+              (nackReceived / (packetsSent - rtxPacketsSent)) *
+              100
+            ).toFixed();
+          }
+        }
+      }, 1000);
+    } else if (pc.connectionState === "failed") {
+      stopStreaming(view);
+    }
+  }
+
   pc.onicecandidate = (event) => {
     if (event.candidate == null) {
       return;
@@ -209,15 +311,42 @@ async function sendCandidate(patchEndpoint, candidate) {
     );
   }
 }
-
 function stopStreaming() {
   pc.close();
   pc = undefined;
 
+  resetStats();
   enableControls();
 
   button.innerText = 'Start Streaming';
   button.onclick = startStreaming;
+}
+
+function resetStats() {
+  startTime = undefined;
+  lastAudioReport = undefined;
+  lastVideoReport = undefined;
+  audioBitrate.innerText = 0;
+  videoBitrate.innerText = 0;
+  packetLoss.innerText = 0;
+  time.innerText = "00:00:00";
+  status.style.backgroundColor = "rgb(239, 68, 68)";
+}
+
+function toHHMMSS(milliseconds) {
+  // Calculate hours
+  let hours = Math.floor(milliseconds / (1000 * 60 * 60));
+  // Calculate minutes, subtracting the hours part
+  let minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+  // Calculate seconds, subtracting the hours and minutes parts
+  let seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+
+  // Formatting each unit to always have at least two digits
+  hours = hours < 10 ? "0" + hours : hours;
+  minutes = minutes < 10 ? "0" + minutes : minutes;
+  seconds = seconds < 10 ? "0" + seconds : seconds;
+
+  return hours + ":" + minutes + ":" + seconds;
 }
 
 async function run() {
