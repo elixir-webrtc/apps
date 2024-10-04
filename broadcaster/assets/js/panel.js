@@ -20,7 +20,8 @@ const audioBitrate = document.getElementById('audio-bitrate');
 const videoBitrate = document.getElementById('video-bitrate');
 const packetLoss = document.getElementById('packet-loss');
 const time = document.getElementById('time');
-const status = document.getElementById('status');
+const statusOff = document.getElementById('status-off');
+const statusOn = document.getElementById('status-on');
 
 let lastAudioReport = undefined;
 let lastVideoReport = undefined;
@@ -124,11 +125,9 @@ async function startStreaming() {
     console.log('Gathering state change:', pc.iceGatheringState);
   pc.onconnectionstatechange = () => {
     console.log('Connection state change:', pc.connectionState);
-    if (pc.connectionState === "connected") {
+    if (pc.connectionState === 'connected') {
       startTime = new Date();
-      status.classList.remove("bg-red-500");
-      // TODO use tailwind
-      status.style.backgroundColor = "rgb(34, 197, 94)";
+      setStatusIcon(true);
 
       statsIntervalId = setInterval(async function () {
         if (!pc) {
@@ -140,60 +139,76 @@ async function startStreaming() {
         time.innerText = toHHMMSS(new Date() - startTime);
 
         const stats = await pc.getStats(null);
-        let bitrate;
+
+        let audioReport;
+        let videoReport = {
+          timestamp: undefined,
+          bytesSent: 0,
+          packetsSent: 0,
+          retransmittedPacketsSent: 0,
+          nackCount: 0,
+        };
 
         stats.forEach((report) => {
-          if (report.type === "outbound-rtp" && report.kind === "video") {
-            if (!lastVideoReport) {
-              bitrate = (report.bytesSent * 8) / 1000;
-            } else {
-              const timeDiff =
-                (report.timestamp - lastVideoReport.timestamp) / 1000;
-              if (timeDiff == 0) {
-                // this should never happen as we are getting stats every second
-                bitrate = 0;
-              } else {
-                bitrate =
-                  ((report.bytesSent - lastVideoReport.bytesSent) *
-                    8) /
-                  timeDiff;
-              }
-            }
-
-            videoBitrate.innerText = (bitrate / 1000).toFixed();
-            lastVideoReport = report;
+          if (report.type === 'outbound-rtp' && report.kind === 'video') {
+            videoReport.timestamp = report.timestamp;
+            videoReport.bytesSent += report.bytesSent;
+            videoReport.packetsSent += report.packetsSent;
+            videoReport.retransmittedPacketsSent +=
+              report.retransmittedPacketsSent;
+            videoReport.nackCount += report.nackCount;
           } else if (
-            report.type === "outbound-rtp" &&
-            report.kind === "audio"
+            report.type === 'outbound-rtp' &&
+            report.kind === 'audio'
           ) {
-            if (!lastAudioReport) {
-              bitrate = report.bytesSent;
-            } else {
-              const timeDiff =
-                (report.timestamp - lastAudioReport.timestamp) / 1000;
-              if (timeDiff == 0) {
-                // this should never happen as we are getting stats every second
-                bitrate = 0;
-              } else {
-                bitrate =
-                  ((report.bytesSent - lastAudioReport.bytesSent) *
-                    8) /
-                  timeDiff;
-              }
-            }
-
-            audioBitrate.innerText = (bitrate / 1000).toFixed();
-            lastAudioReport = report;
+            audioReport = report;
           }
         });
+
+        // calculate bitrates
+        let bitrate;
+        if (!lastVideoReport) {
+          bitrate = (videoReport.bytesSent * 8) / 1000;
+        } else {
+          const timeDiff =
+            (videoReport.timestamp - lastVideoReport.timestamp) / 1000;
+          if (timeDiff == 0) {
+            // this should never happen as we are getting stats every second
+            bitrate = 0;
+          } else {
+            bitrate =
+              ((videoReport.bytesSent - lastVideoReport.bytesSent) * 8) /
+              timeDiff;
+          }
+        }
+
+        videoBitrate.innerText = (bitrate / 1000).toFixed();
+        lastVideoReport = videoReport;
+
+        if (!lastAudioReport) {
+          bitrate = audioReport.bytesSent;
+        } else {
+          const timeDiff =
+            (audioReport.timestamp - lastAudioReport.timestamp) / 1000;
+          if (timeDiff == 0) {
+            // this should never happen as we are getting stats every second
+            bitrate = 0;
+          } else {
+            bitrate =
+              ((audioReport.bytesSent - lastAudioReport.bytesSent) * 8) /
+              timeDiff;
+          }
+        }
+
+        audioBitrate.innerText = (bitrate / 1000).toFixed();
+        lastAudioReport = audioReport;
 
         // calculate packet loss
         if (!lastAudioReport || !lastVideoReport) {
           packetLoss.innerText = 0;
         } else {
           const packetsSent =
-            lastVideoReport.packetsSent +
-            lastAudioReport.packetsSent;
+            lastVideoReport.packetsSent + lastAudioReport.packetsSent;
           const rtxPacketsSent =
             lastVideoReport.retransmittedPacketsSent +
             lastAudioReport.retransmittedPacketsSent;
@@ -210,10 +225,14 @@ async function startStreaming() {
           }
         }
       }, 1000);
-    } else if (pc.connectionState === "failed") {
-      stopStreaming(view);
+    } else if (pc.connectionState === 'disconnected') {
+      console.warn('Peer connection state changed to `disconnected`');
+      setStatusIcon(false);
+    } else if (pc.connectionState === 'failed') {
+      console.error('Peer connection state changed to `failed`');
+      stopStreaming();
     }
-  }
+  };
 
   pc.onicecandidate = (event) => {
     if (event.candidate == null) {
@@ -329,8 +348,8 @@ function resetStats() {
   audioBitrate.innerText = 0;
   videoBitrate.innerText = 0;
   packetLoss.innerText = 0;
-  time.innerText = "00:00:00";
-  status.style.backgroundColor = "rgb(239, 68, 68)";
+  time.innerText = '00:00:00';
+  setStatusIcon(false);
 }
 
 function toHHMMSS(milliseconds) {
@@ -342,11 +361,21 @@ function toHHMMSS(milliseconds) {
   let seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
 
   // Formatting each unit to always have at least two digits
-  hours = hours < 10 ? "0" + hours : hours;
-  minutes = minutes < 10 ? "0" + minutes : minutes;
-  seconds = seconds < 10 ? "0" + seconds : seconds;
+  hours = hours < 10 ? '0' + hours : hours;
+  minutes = minutes < 10 ? '0' + minutes : minutes;
+  seconds = seconds < 10 ? '0' + seconds : seconds;
 
-  return hours + ":" + minutes + ":" + seconds;
+  return hours + ':' + minutes + ':' + seconds;
+}
+
+function setStatusIcon(isOn) {
+  if (isOn) {
+    statusOff.classList.add('hidden');
+    statusOn.classList.remove('hidden');
+  } else {
+    statusOn.classList.add('hidden');
+    statusOff.classList.remove('hidden');
+  }
 }
 
 async function run() {
