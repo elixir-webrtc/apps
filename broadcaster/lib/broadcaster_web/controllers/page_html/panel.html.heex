@@ -111,16 +111,41 @@
         </button>
       </div>
     </details>
+    <div class="flex flex-col max-w-[640px]">
+      <video id="previewPlayer" class=" rounded-lg bg-black" autoplay controls muted></video>
+      <div class="flex justify-between w-full text-[#606060]">
+        <div class="flex p-1 gap-4">
+          <div class="flex flex-col">
+            <label for="audio-bitrate">Audio Bitrate (kbps): </label>
+            <span id="audio-bitrate">0</span>
+          </div>
+          <div class="flex flex-col">
+            <label for="video-bitrate">Video Bitrate (kbps): </label>
+            <span id="video-bitrate">0</span>
+          </div>
+          <div class="flex flex-col">
+            <label for="packet-loss">Packet loss (%): </label>
+            <span id="packet-loss">0</span>
+          </div>
+          <div class="flex flex-col">
+            <label for="time">Time: </label>
+            <span id="time">00:00:00</span>
+          </div>
+        </div>
+        <div class="p-1 flex items-center">
+          <div id="status-off" class="text-red-600"><.icon name="hero-signal-slash" /></div>
+          <div id="status-on" class="text-green-600 hidden"><.icon name="hero-signal" /></div>
+        </div>
+      </div>
+    </div>
     <div>
       <button
         id="button"
-        class="rounded-lg w-full bg-brand/100 px-2.5 py-2.5 hover:bg-brand/90 text-white font-bold"
+        class="rounded-lg w-[640px] bg-brand/100 px-2.5 py-2.5 hover:bg-brand/90 text-white font-bold"
       >
         Start streaming
       </button>
     </div>
-    <video id="previewPlayer" class="max-w-[640px] rounded-lg bg-black" autoplay controls muted>
-    </video>
   </div>
   <div
     id="chat"
