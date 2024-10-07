@@ -36,6 +36,12 @@
           <label for="noiseSuppression">Noise Suppression</label>
           <input type="checkbox" id="noiseSuppression" class="rounded" checked />
         </div>
+        <button
+          id="save-audio-config"
+          class="rounded-lg bg-brand/100 text-white py-2.5 max-w-36 hover:bg-brand/90 disabled:bg-brand/50"
+        >
+          Save
+        </button>
       </div>
     </details>
     <details class="details">
@@ -49,7 +55,7 @@
               type="text"
               id="highVideoBitrate"
               value="1500"
-              class="rounded-lg focus:border-b focus:outline-none focus:ring-0"
+              class="rounded-lg focus:border-b focus:outline-none focus:ring-0 disabled:text-gray-400 disabled:border-gray-400"
             />
           </div>
           <div class="flex gap-2.5 items-center">
@@ -58,7 +64,7 @@
               type="text"
               id="mediumVideoBitrate"
               value="600"
-              class="rounded-lg focus:border-b focus:outline-none focus:ring-0"
+              class="rounded-lg focus:border-b focus:outline-none focus:ring-0 disabled:text-gray-400 disabled:border-gray-400"
             />
           </div>
           <div class="flex gap-2.5 items-center">
@@ -67,7 +73,7 @@
               type="text"
               id="lowVideoBitrate"
               value="200"
-              class="rounded-lg focus:border-b focus:outline-none focus:ring-0"
+              class="rounded-lg focus:border-b focus:outline-none focus:ring-0 disabled:text-gray-400 disabled:border-gray-400"
             />
           </div>
         </div>

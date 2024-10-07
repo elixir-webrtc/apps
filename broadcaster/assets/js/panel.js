@@ -15,6 +15,7 @@ const echoCancellation = document.getElementById('echoCancellation');
 const autoGainControl = document.getElementById('autoGainControl');
 const noiseSuppression = document.getElementById('noiseSuppression');
 const saveStreamConfigButton = document.getElementById('save-stream-config');
+const saveAudioConfigButton = document.getElementById('save-audio-config');
 
 const audioBitrate = document.getElementById('audio-bitrate');
 const videoBitrate = document.getElementById('video-bitrate');
@@ -40,7 +41,7 @@ const mediaConstraints = {
 let localStream = undefined;
 let pc = undefined;
 
-function setupSaveStreamConfigButton() {
+function setupSaveConfigButtons() {
   saveStreamConfigButton.onclick = async () => {
     const title = document.getElementById('stream-title').value;
     const description = document.getElementById('stream-description').value;
@@ -53,6 +54,8 @@ function setupSaveStreamConfigButton() {
       console.warn('Setting stream title and description failed');
     }
   };
+
+  saveAudioConfigButton.onclick = setupStream;
 }
 
 async function setupStream() {
@@ -101,17 +104,31 @@ function bindControls() {
 }
 
 function disableControls() {
-  audioDevices.setAttribute('disabled', 'disabled');
-  videoDevices.setAttribute('disabled', 'disabled');
-  serverUrl.setAttribute('disabled', 'disabled');
-  serverToken.setAttribute('disabled', 'disabled');
+  audioDevices.disabled = true;
+  videoDevices.disabled = true;
+  serverUrl.disabled = true;
+  serverToken.disabled = true;
+  saveAudioConfigButton.disabled = true;
+  highVideoBitrate.disabled = true;
+  mediumVideoBitrate.disabled = true;
+  lowVideoBitrate.disabled = true;
+  echoCancellation.disabled = true;
+  autoGainControl.disabled = true;
+  noiseSuppression.disabled = true;
 }
 
 function enableControls() {
-  audioDevices.removeAttribute('disabled');
-  videoDevices.removeAttribute('disabled');
-  serverUrl.removeAttribute('disabled');
-  serverToken.removeAttribute('disabled');
+  audioDevices.disabled = false;
+  videoDevices.disabled = false;
+  serverUrl.disabled = false;
+  serverToken.disabled = false;
+  saveAudioConfigButton.disabled = false;
+  highVideoBitrate.disabled = false;
+  mediumVideoBitrate.disabled = false;
+  lowVideoBitrate.disabled = false;
+  echoCancellation.disabled = false;
+  autoGainControl.disabled = false;
+  noiseSuppression.disabled = false;
 }
 
 async function startStreaming() {
@@ -417,7 +434,7 @@ export const Panel = {
     });
     socket.connect();
 
-    setupSaveStreamConfigButton();
+    setupSaveConfigButtons();
     connectChat(socket, true);
     run();
   },
