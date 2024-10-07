@@ -37,29 +37,14 @@ defmodule BroadcasterWeb.Channel do
   end
 
   @impl true
+  def handle_in("chat_msg", %{"body" => body}, %{assigns: %{admin: true}} = socket) do
+    broadcast_msg(body, socket)
+  end
+
+  @impl true
   def handle_in("chat_msg", %{"body" => body}, socket) do
-    now = System.monotonic_time(:millisecond)
-
-    if now - socket.assigns.last_msg_time >= @chat_slow_mode_ms do
-      body = String.slice(body, 0..(@max_message_length - 1))
-
-      msg = %{
-        body: body,
-        nickname: socket.assigns.nickname,
-        id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}",
-        admin: Map.get(socket.assigns, :admin)
-      }
-
-      Broadcaster.ChatHistory.put(msg)
-      broadcast!(socket, "chat_msg", msg)
-
-      socket =
-        assign(socket,
-          msg_count: socket.assigns.msg_count + 1,
-          last_msg_time: System.monotonic_time(:millisecond)
-        )
-
-      {:noreply, socket}
+    if System.monotonic_time(:millisecond) - socket.assigns.last_msg_time >= @chat_slow_mode_ms do
+      broadcast_msg(body, socket)
     else
       {:noreply, socket}
     end
@@ -135,5 +120,27 @@ defmodule BroadcasterWeb.Channel do
       {:ok, _} -> true
       _ -> false
     end
+  end
+
+  defp broadcast_msg(body, socket) do
+    body = String.slice(body, 0..(@max_message_length - 1))
+
+    msg = %{
+      body: body,
+      nickname: socket.assigns.nickname,
+      id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}",
+      admin: Map.get(socket.assigns, :admin)
+    }
+
+    Broadcaster.ChatHistory.put(msg)
+    broadcast!(socket, "chat_msg", msg)
+
+    socket =
+      assign(socket,
+        msg_count: socket.assigns.msg_count + 1,
+        last_msg_time: System.monotonic_time(:millisecond)
+      )
+
+    {:noreply, socket}
   end
 end
