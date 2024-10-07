@@ -227,7 +227,6 @@ async function startStreaming() {
       }, 1000);
     } else if (pc.connectionState === 'disconnected') {
       console.warn('Peer connection state changed to `disconnected`');
-      setStatusIcon(false);
     } else if (pc.connectionState === 'failed') {
       console.error('Peer connection state changed to `failed`');
       stopStreaming();
