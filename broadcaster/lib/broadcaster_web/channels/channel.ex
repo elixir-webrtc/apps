@@ -42,7 +42,8 @@ defmodule BroadcasterWeb.Channel do
     msg = %{
       body: body,
       nickname: socket.assigns.nickname,
-      id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}"
+      id: "#{socket.assigns.user_id}:#{socket.assigns.msg_count}",
+      admin: Map.get(socket.assigns, :admin)
     }
 
     Broadcaster.ChatHistory.put(msg)
@@ -52,19 +53,33 @@ defmodule BroadcasterWeb.Channel do
   end
 
   @impl true
-  def handle_in("join_chat", %{"nickname" => nickname}, socket) do
-    case register(nickname) do
-      :ok ->
-        socket =
-          socket
-          |> assign(:nickname, nickname)
-          |> assign(:msg_count, 0)
+  def handle_in("join_chat", payload, socket) do
+    token = payload["token"]
+    nickname = payload["nickname"]
 
-        :ok = push(socket, "join_chat_resp", %{"result" => "success"})
+    with {:token, true} <- {:token, validate_token(token)},
+         {:register, true} <- {:register, register(nickname)} do
+      socket =
+        socket
+        |> assign(:nickname, nickname)
+        |> assign(:msg_count, 0)
+
+      socket =
+        if token != nil do
+          assign(socket, :admin, true)
+        else
+          socket
+        end
+
+      :ok = push(socket, "join_chat_resp", %{"result" => "success"})
+      {:noreply, socket}
+    else
+      {:token, false} ->
+        :ok = push(socket, "join_chat_resp", %{"result" => "error", "reason" => "unauthorized"})
         {:noreply, socket}
 
-      :error ->
-        :ok = push(socket, "join_chat_resp", %{"result" => "error"})
+      {:register, false} ->
+        :ok = push(socket, "join_chat_resp", %{"result" => "error", "reason" => "name taken"})
         {:noreply, socket}
     end
   end
@@ -94,8 +109,17 @@ defmodule BroadcasterWeb.Channel do
 
   defp do_register(nickname) do
     case Registry.register(Broadcaster.ChatNicknamesRegistry, nickname, nil) do
-      {:ok, _} -> :ok
-      {:error, _} -> :error
+      {:ok, _} -> true
+      {:error, _} -> false
+    end
+  end
+
+  defp validate_token(nil), do: true
+
+  defp validate_token(token) do
+    case Phoenix.Token.verify(BroadcasterWeb.Endpoint, "admin", token, max_age: 86_400) do
+      {:ok, _} -> true
+      _ -> false
     end
   end
 end

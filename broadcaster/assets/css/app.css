@@ -26,6 +26,10 @@ ul {
   font-weight: 600;
 }
 
+.chat-admin {
+  color: #e63946;
+}
+
 .chat-bar {
   width: 100%;
   display: flex;
