@@ -30,6 +30,11 @@ defmodule BroadcasterWeb.PageController do
     send_resp(conn, 200, "")
   end
 
+  def get_admin_chat_token(conn, _params) do
+    token = Phoenix.Token.sign(BroadcasterWeb.Endpoint, "admin", <<>>)
+    send_resp(conn, 200, Jason.encode!(%{"token" => token}))
+  end
+
   defp to_html(markdown) do
     markdown
     |> String.trim()

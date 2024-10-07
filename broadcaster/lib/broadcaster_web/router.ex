@@ -50,6 +50,7 @@ defmodule BroadcasterWeb.Router do
 
       delete "/chat/:id", PageController, :delete_chat_message
       post "/stream", PageController, :config_stream
+      get "/chat-token", PageController, :get_admin_chat_token
     end
   end
 
