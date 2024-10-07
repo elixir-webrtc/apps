@@ -60,7 +60,8 @@ config :mime, :types, %{
 config :broadcaster,
   whip_token: "example",
   admin_username: "admin",
-  admin_password: "admin"
+  admin_password: "admin",
+  chat_slow_mode_ms: 1000
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
