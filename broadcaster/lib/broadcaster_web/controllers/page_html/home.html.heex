@@ -20,6 +20,13 @@
 
     <div class="flex flex-col justify-end py-2">
       <div class="w-full py-2">
+        <div class="flex w-full justify-end">
+          <span class="pr-1 text-[#606060] font-bold text-sm text-right">
+            Slow Mode <%= Broadcaster.format_float(
+              Application.fetch_env!(:broadcaster, :chat_slow_mode_ms) / 1000
+            ) %>s
+          </span>
+        </div>
         <textarea
           id="chat-input"
           class="resize-none rounded-lg w-full border-brand/50 focus:border-brand/100 focus:outline-none focus:ring-0"
