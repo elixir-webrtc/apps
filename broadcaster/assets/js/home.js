@@ -9,6 +9,7 @@ const settingsToggler = document.getElementById('settings-toggler');
 const settings = document.getElementById('settings');
 const videoQuality = document.getElementById('video-quality');
 const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
+const videoPlayerGrid = document.getElementById('videoplayer-grid');
 const statusMessage = document.getElementById('status-message');
 
 const whepEndpointBase = `${window.location.origin}/api/whep`;
@@ -80,7 +81,7 @@ async function connectInput(id) {
     videoPlayer.muted = true;
     videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
 
-    videoPlayerWrapper.appendChild(videoPlayer);
+    videoPlayerGrid.appendChild(videoPlayer);
     inputData.videoPlayer = videoPlayer;
     updateVideoGrid();
     statusMessage.classList.add('hidden');
@@ -101,7 +102,7 @@ async function removeInput(id) {
     inputData.whepClient.disconnect();
 
     if (inputData.videoPlayer) {
-      videoPlayerWrapper.removeChild(inputData.videoPlayer);
+      videoPlayerGrid.removeChild(inputData.videoPlayer);
       updateVideoGrid();
     }
   }
@@ -149,7 +150,7 @@ function toggleBox(element, other) {
 }
 
 function updateVideoGrid() {
-  const videoCount = videoPlayerWrapper.children.length;
+  const videoCount = videoPlayerGrid.children.length;
 
   let columns;
   if (videoCount <= 1) {
@@ -164,14 +165,14 @@ function updateVideoGrid() {
     columns = 'grid-cols-5';
   }
 
-  videoPlayerWrapper.classList.remove(
+  videoPlayerGrid.classList.remove(
     'grid-cols-1',
     'grid-cols-2',
     'grid-cols-3',
     'grid-cols-4',
     'grid-cols-5'
   );
-  videoPlayerWrapper.classList.add(columns);
+  videoPlayerGrid.classList.add(columns);
 }
 
 export const Home = {
