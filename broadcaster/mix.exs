@@ -4,7 +4,7 @@ defmodule Broadcaster.MixProject do
   def project do
     [
       app: :broadcaster,
-      version: "0.6.0-dev",
+      version: "0.5.1",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

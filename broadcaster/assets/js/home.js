@@ -8,7 +8,7 @@ const chat = document.getElementById('chat');
 const settingsToggler = document.getElementById('settings-toggler');
 const settings = document.getElementById('settings');
 const videoQuality = document.getElementById('video-quality');
-const videoPlayerWrapper = document.getElementById('videoplayer-grid');
+const videoPlayerWrapper = document.getElementById('videoplayer-wrapper');
 const statusMessage = document.getElementById('status-message');
 
 const whepEndpointBase = `${window.location.origin}/api/whep`;
