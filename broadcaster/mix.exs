@@ -4,7 +4,7 @@ defmodule Broadcaster.MixProject do
   def project do
     [
       app: :broadcaster,
-      version: "0.5.2",
+      version: "0.6.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -59,8 +59,8 @@ defmodule Broadcaster.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.2"},
       {:corsica, "~> 2.1.3"},
-      {:ex_webrtc, "~> 0.5.0"},
-      {:ex_webrtc_dashboard, "~> 0.5.0"},
+      {:ex_webrtc, "~> 0.6.0"},
+      {:ex_webrtc_dashboard, "~> 0.6.0"},
       {:earmark, "~> 1.4"},
 
       # Dialyzer and credo
