@@ -214,9 +214,10 @@ defmodule Recognizer.Room do
     {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
     state = %{state | video_depayloader: depayloader}
 
-    with true <- is_nil(state.task),
-         false <- is_nil(frame),
-         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame) do
+    with false <- is_nil(frame),
+         # decoder needs to decode every frame, no matter we are going to process it or not
+         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame),
+         true <- is_nil(state.task) do
       tensor = Xav.Frame.to_nx(frame)
       task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
       %{state | task: task}
