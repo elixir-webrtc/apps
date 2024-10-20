@@ -74,6 +74,10 @@ async function connectInput(id) {
   whepClient.onstream = (stream) => {
     console.log(`[${id}]: Creating new video element`);
 
+
+    const w = document.createElement('div');
+    w.className = 'w'
+
     const videoPlayer = document.createElement('video');
     videoPlayer.srcObject = stream;
     videoPlayer.autoplay = true;
@@ -81,7 +85,20 @@ async function connectInput(id) {
     videoPlayer.muted = true;
     videoPlayer.className = 'rounded-xl w-full h-full object-cover bg-black';
 
-    videoPlayerGrid.appendChild(videoPlayer);
+    w.appendChild(videoPlayer);
+
+    // const a = document.createElement('a');
+    // a.appendChild(w);
+    // a.href = "https://swmansion.com"
+    // a.className = 'a-watermark';
+
+    const watermark = document.createElement('div');
+    watermark.style = 'position: absolute; width: 20px; height: 20px; background-color: red;'
+    const p = document.createElement('div');
+    p.style = 'position: relative; display: inline-block;';
+    p.appendChild(videoPlayer);
+    p.appendChild(watermark);
+    videoPlayerGrid.appendChild(p);
     inputData.videoPlayer = videoPlayer;
     updateVideoGrid();
     statusMessage.classList.add('hidden');

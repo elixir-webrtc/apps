@@ -83,3 +83,34 @@ summary {
   color: #606060;
   padding: 10px 0px;
 }
+
+.a-watermark {
+  pointer-events: none;
+}
+
+
+
+.w {
+  position: relative;
+}
+
+.w:before {
+  content: " ";
+  background-color: red;
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  right: 10px;
+  top: 10px;
+  background: url("swm_logo.svg");
+  max-width: 15%;
+  background-repeat: no-repeat;
+  max-height: 15%;
+  opacity: 0.9;
+  pointer-events: all;
+}
+
+.w:hover:before {
+  transform: scale(1.1);
+  transition: all 0.2s linear;
+}
