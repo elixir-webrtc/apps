@@ -11,6 +11,7 @@ x-broadcaster-template: &broadcaster-template
     ADMIN_PASSWORD: admin
     RELEASE_DISTRIBUTION: name
     RELEASE_COOKIE: super-secret-cookie
+    DISTRIBUTION_MODE: dns
     DNS_CLUSTER_QUERY: app.dns-network
   restart: on-failure
 

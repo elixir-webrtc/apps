@@ -2,4 +2,10 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
+
+if [ "${DISTRIBUTION_MODE-}" = "k8s" ]; then
+  export RELEASE_DISTRIBUTION=name
+  export RELEASE_NODE=broadcaster@${POD_IP}
+fi
+
 PHX_SERVER=true exec ./broadcaster start
