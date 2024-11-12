@@ -11,7 +11,10 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
     </script>
   </head>
-  <body class="bg-white antialiased h-svh flex flex-col">
+  <body
+    class="bg-white antialiased h-svh flex flex-col"
+    data-pcConfig={Broadcaster.PeerSupervisor.client_pc_config()}
+  >
     <%= @inner_content %>
   </body>
 </html>

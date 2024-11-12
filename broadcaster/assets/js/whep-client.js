@@ -1,4 +1,10 @@
-const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let pcConfig;
+const pcConfigData = document.body.getAttribute('data-pcConfig');
+if (pcConfigData) {
+  pcConfig = JSON.parse(pcConfigData);
+} else {
+  pcConfig = {};
+}
 
 export class WHEPClient {
   constructor(url) {

@@ -16,6 +16,39 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+
+read_k8s_dist_config! = fn ->
+  case System.get_env("K8S_SERVICE_NAME") do
+    nil ->
+      raise "Distribution mode `k8s` requires setting the env variable K8S_SERVICE_NAME"
+
+    service ->
+      [
+        strategy: Cluster.Strategy.Kubernetes.DNS,
+        config: [
+          application_name: "broadcaster",
+          service: service
+        ]
+      ]
+  end
+end
+
+read_dns_dist_config! = fn ->
+  case System.get_env("DNS_CLUSTER_QUERY") do
+    nil ->
+      raise "Distribution mode `dns` requires setting the env variable DNS_CLUSTER_QUERY"
+
+    query ->
+      [
+        strategy: Cluster.Strategy.DNSPoll,
+        config: [
+          node_basename: "broadcaster",
+          query: query
+        ]
+      ]
+  end
+end
+
 read_ice_port_range! = fn ->
   case System.get_env("ICE_PORT_RANGE") do
     nil ->
@@ -29,11 +62,40 @@ read_ice_port_range! = fn ->
   end
 end
 
+dist_config =
+  case System.get_env("DISTRIBUTION_MODE") do
+    "k8s" -> read_k8s_dist_config!.()
+    "dns" -> read_dns_dist_config!.()
+    _else -> nil
+  end
+
+ice_server_config =
+  %{
+    urls: System.get_env("ICE_SERVER_URL") || "stun:stun.l.google.com:19302",
+    username: System.get_env("ICE_SERVER_USERNAME"),
+    credential: System.get_env("ICE_SERVER_CREDENTIAL")
+  }
+  |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+ice_transport_policy =
+  case System.get_env("ICE_TRANSPORT_POLICY") do
+    "relay" -> :relay
+    _other -> :all
+  end
+
+pc_config = [
+  ice_servers: [ice_server_config],
+  ice_transport_policy: ice_transport_policy,
+  ice_port_range: read_ice_port_range!.()
+]
+
+config :broadcaster,
+  dist_config: dist_config,
+  pc_config: pc_config
+
 if System.get_env("PHX_SERVER") do
   config :broadcaster, BroadcasterWeb.Endpoint, server: true
 end
-
-config :broadcaster, ice_port_range: read_ice_port_range!.()
 
 if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -50,8 +112,6 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
-
-  config :broadcaster, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :broadcaster, BroadcasterWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

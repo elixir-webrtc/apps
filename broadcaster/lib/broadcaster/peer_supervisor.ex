@@ -24,11 +24,16 @@ defmodule Broadcaster.PeerSupervisor do
     }
   ]
 
-  @opts [
-    ice_servers: [%{urls: "stun:stun.l.google.com:19302"}],
-    audio_codecs: @audio_codecs,
-    video_codecs: @video_codecs
-  ]
+  @spec client_pc_config() :: String.t()
+  def client_pc_config() do
+    pc_config = Application.fetch_env!(:broadcaster, :pc_config)
+
+    %{
+      iceServers: pc_config[:ice_servers],
+      iceTransportPolicy: pc_config[:ice_transport_policy]
+    }
+    |> Jason.encode!()
+  end
 
   @spec start_link(any()) :: Supervisor.on_start()
   def start_link(arg) do
@@ -102,9 +107,15 @@ defmodule Broadcaster.PeerSupervisor do
   end
 
   defp spawn_peer_connection(id) do
-    ice_port_range = Application.fetch_env!(:broadcaster, :ice_port_range)
     gen_server_opts = [name: {:via, Registry, {Broadcaster.PeerRegistry, id}}]
-    pc_opts = @opts ++ [controlling_process: self(), ice_port_range: ice_port_range]
+
+    pc_opts =
+      Application.fetch_env!(:broadcaster, :pc_config) ++
+        [
+          audio_codecs: @audio_codecs,
+          video_codecs: @video_codecs,
+          controlling_process: self()
+        ]
 
     child_spec = %{
       id: PeerConnection,

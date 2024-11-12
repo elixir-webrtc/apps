@@ -12,21 +12,25 @@ defmodule Broadcaster.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      BroadcasterWeb.Telemetry,
-      {DNSCluster, query: Application.get_env(:broadcaster, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Broadcaster.PubSub},
-      # Start a worker by calling: Broadcaster.Worker.start_link(arg)
-      # {Broadcaster.Worker, arg},
-      # Start to serve requests, typically the last entry
-      BroadcasterWeb.Endpoint,
-      BroadcasterWeb.Presence,
-      Broadcaster.PeerSupervisor,
-      Broadcaster.Forwarder,
-      Broadcaster.ChatHistory,
-      {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
-      {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
-    ]
+    children =
+      [
+        BroadcasterWeb.Telemetry,
+        {Phoenix.PubSub, name: Broadcaster.PubSub},
+        BroadcasterWeb.Endpoint,
+        BroadcasterWeb.Presence,
+        Broadcaster.PeerSupervisor,
+        Broadcaster.Forwarder,
+        Broadcaster.ChatHistory,
+        {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
+        {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
+      ] ++
+        case Application.fetch_env!(:broadcaster, :dist_config) do
+          nil ->
+            []
+
+          config ->
+            [{Cluster.Supervisor, [[cluster: config], [name: Broadcaster.ClusterSupervisor]]}]
+        end
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

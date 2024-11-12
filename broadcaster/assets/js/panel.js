@@ -41,6 +41,15 @@ const mediaConstraints = {
 let localStream = undefined;
 let pc = undefined;
 
+let pcConfig;
+const pcConfigData = document.body.getAttribute('data-pcConfig');
+if (pcConfigData) {
+  pcConfig = JSON.parse(pcConfigData);
+} else {
+  pcConfig = {};
+}
+console.log(pcConfig);
+
 function setupSaveConfigButtons() {
   saveStreamConfigButton.onclick = async () => {
     const title = document.getElementById('stream-title').value;
@@ -136,7 +145,7 @@ async function startStreaming() {
 
   const candidates = [];
   let patchEndpoint = undefined;
-  pc = new RTCPeerConnection();
+  pc = new RTCPeerConnection(pcConfig);
 
   pc.onicegatheringstatechange = () =>
     console.log('Gathering state change:', pc.iceGatheringState);
