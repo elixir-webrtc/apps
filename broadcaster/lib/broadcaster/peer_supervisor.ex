@@ -37,6 +37,8 @@ defmodule Broadcaster.PeerSupervisor do
 
   @spec start_link(any()) :: Supervisor.on_start()
   def start_link(arg) do
+    :syn.add_node_to_scopes([Broadcaster.GlobalPeerRegistry])
+
     DynamicSupervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
@@ -46,11 +48,11 @@ defmodule Broadcaster.PeerSupervisor do
   @spec start_whep(String.t()) :: {:ok, pid(), String.t(), String.t()} | {:error, term()}
   def start_whep(offer_sdp), do: start_pc(offer_sdp, :sendonly)
 
-  @spec fetch_pid(String.t()) :: {:ok, pid()} | :error
+  @spec fetch_pid(String.t()) :: {:ok, pid()} | {:error, :peer_not_found}
   def fetch_pid(id) do
-    case Registry.lookup(Broadcaster.PeerRegistry, id) do
-      [] -> :error
-      [{pid, _val}] -> {:ok, pid}
+    case :syn.lookup(Broadcaster.GlobalPeerRegistry, id) do
+      :undefined -> {:error, :peer_not_found}
+      {pid, _val} -> {:ok, pid}
     end
   end
 
@@ -67,7 +69,8 @@ defmodule Broadcaster.PeerSupervisor do
   defp start_pc(offer_sdp, direction) do
     offer = %SessionDescription{type: :offer, sdp: offer_sdp}
     pc_id = generate_pc_id()
-    {:ok, pc} = spawn_peer_connection(pc_id)
+    {:ok, pc} = spawn_peer_connection()
+    :syn.register(Broadcaster.GlobalPeerRegistry, pc_id, pc)
 
     Logger.info("Received offer for #{inspect(pc)}")
     Logger.debug("Offer SDP for #{inspect(pc)}:\n#{offer.sdp}")
@@ -106,9 +109,7 @@ defmodule Broadcaster.PeerSupervisor do
     :ok
   end
 
-  defp spawn_peer_connection(id) do
-    gen_server_opts = [name: {:via, Registry, {Broadcaster.PeerRegistry, id}}]
-
+  defp spawn_peer_connection() do
     pc_opts =
       Application.fetch_env!(:broadcaster, :pc_config) ++
         [
@@ -119,7 +120,7 @@ defmodule Broadcaster.PeerSupervisor do
 
     child_spec = %{
       id: PeerConnection,
-      start: {PeerConnection, :start_link, [pc_opts, gen_server_opts]},
+      start: {PeerConnection, :start_link, [pc_opts, []]},
       restart: :temporary
     }
 

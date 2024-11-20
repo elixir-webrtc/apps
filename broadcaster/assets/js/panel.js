@@ -48,7 +48,6 @@ if (pcConfigData) {
 } else {
   pcConfig = {};
 }
-console.log(pcConfig);
 
 function setupSaveConfigButtons() {
   saveStreamConfigButton.onclick = async () => {

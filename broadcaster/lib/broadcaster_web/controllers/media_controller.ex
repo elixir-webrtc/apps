@@ -91,7 +91,7 @@ defmodule BroadcasterWeb.MediaController do
         |> send_chunked(200)
         |> update_layers(pid)
 
-      :error ->
+      {:error, :peer_not_found} ->
         send_resp(conn, 400, "Bad request")
     end
   end

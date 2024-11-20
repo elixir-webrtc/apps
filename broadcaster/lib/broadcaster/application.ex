@@ -21,7 +21,6 @@ defmodule Broadcaster.Application do
         Broadcaster.PeerSupervisor,
         Broadcaster.Forwarder,
         Broadcaster.ChatHistory,
-        {Registry, name: Broadcaster.PeerRegistry, keys: :unique},
         {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
       ] ++
         case Application.fetch_env!(:broadcaster, :dist_config) do
