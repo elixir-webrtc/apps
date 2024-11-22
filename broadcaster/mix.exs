@@ -4,7 +4,7 @@ defmodule Broadcaster.MixProject do
   def project do
     [
       app: :broadcaster,
-      version: "0.7.2",
+      version: "0.7.3-dev",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -63,6 +63,8 @@ defmodule Broadcaster.MixProject do
       {:earmark, "~> 1.4"},
       {:libcluster, "~> 3.4"},
       {:syn, "~> 3.3"},
+      {:ex_ice, github: "elixir-webrtc/ex_ice", ref: "31741fd", override: true},
+      {:ex_turn, github: "elixir-webrtc/ex_turn", ref: "f76d9c3", override: true},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

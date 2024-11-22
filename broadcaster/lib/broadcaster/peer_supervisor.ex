@@ -117,6 +117,7 @@ defmodule Broadcaster.PeerSupervisor do
           video_codecs: @video_codecs,
           controlling_process: self()
         ]
+        |> Keyword.delete(:ice_transport_policy)
 
     child_spec = %{
       id: PeerConnection,
