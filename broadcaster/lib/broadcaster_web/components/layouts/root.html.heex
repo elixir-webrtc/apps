@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title suffix=" · Broadcaster">
-      <%= assigns[:page_title] %>
+      {assigns[:page_title]}
     </.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
@@ -15,6 +15,6 @@
     class="bg-white antialiased h-svh flex flex-col"
     data-pcConfig={Broadcaster.PeerSupervisor.client_pc_config()}
   >
-    <%= @inner_content %>
+    {@inner_content}
   </body>
 </html>

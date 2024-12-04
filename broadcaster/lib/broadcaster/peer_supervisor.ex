@@ -111,13 +111,13 @@ defmodule Broadcaster.PeerSupervisor do
 
   defp spawn_peer_connection() do
     pc_opts =
-      Application.fetch_env!(:broadcaster, :pc_config) ++
-        [
-          audio_codecs: @audio_codecs,
-          video_codecs: @video_codecs,
-          controlling_process: self()
-        ]
-        |> Keyword.delete(:ice_transport_policy)
+      (Application.fetch_env!(:broadcaster, :pc_config) ++
+         [
+           audio_codecs: @audio_codecs,
+           video_codecs: @video_codecs,
+           controlling_process: self()
+         ])
+      |> Keyword.delete(:ice_transport_policy)
 
     child_spec = %{
       id: PeerConnection,
