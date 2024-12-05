@@ -6,9 +6,9 @@
     <div id="videoplayer-grid" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
     </div>
     <div id="stream-desc" class="flex flex-col gap-3 p-2">
-      <span class="font-bold text-xl"><%= raw(@title) %></span>
+      <span class="font-bold text-xl">{raw(@title)}</span>
       <span class={"#{if @description != "", do: "bg-neutral-200 p-4 rounded-lg text-wrap break-words", else: ""}"}>
-        <%= raw(@description) %>
+        {raw(@description)}
       </span>
     </div>
   </div>
@@ -22,10 +22,10 @@
       <div class="w-full py-2">
         <div class="flex w-full justify-end">
           <span class="pr-1 text-[#606060] font-bold text-sm text-right">
-            Slow Mode <%= :erlang.float_to_binary(
+            Slow Mode {:erlang.float_to_binary(
               Application.fetch_env!(:broadcaster, :chat_slow_mode_ms) / 1000,
               decimals: 1
-            ) %>s
+            )}s
           </span>
         </div>
         <textarea
