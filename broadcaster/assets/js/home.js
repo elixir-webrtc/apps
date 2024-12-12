@@ -201,17 +201,27 @@ async function connectInput() {
               }
             });
 
-            let packetLoss = 0;
+            let packetsLost = 0;
+            let packetsReceived = 0;
             // calculate packet loss
             if (stats.lastAudioReport) {
-              packetLoss += stats.lastAudioReport.packetsLost;
+              packetsLost += stats.lastAudioReport.packetsLost;
+              packetsReceived += stats.lastAudioReport.packetsReceived;
             }
 
             if (stats.lastVideoReport) {
-              packetLoss += stats.lastVideoReport.packetsLost;
+              packetsLost += stats.lastVideoReport.packetsLost;
+              packetsReceived += stats.lastVideoReport.packetsReceived;
+
             }
 
-            stats.packetLoss.innerText = packetLoss;
+            if (packetsReceived == 0) {
+              stats.packetLoss.innerText = 0;
+            } else {
+              stats.packetLoss.innerText = (packetsLost / packetsReceived * 100).toFixed(2);
+            }
+
+
           }, 1000);
         } else if (view.pc.connectionState === "failed") {
         }
