@@ -11,6 +11,10 @@ ul {
   @apply list-disc list-inside;
 }
 
+td {
+  padding: 5px;
+}
+
 .invalid-input {
   border-color: #d52b4d;
 }

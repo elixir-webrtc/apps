@@ -10,6 +10,9 @@ defmodule Broadcaster.Application do
   @spec version() :: String.t()
   def version(), do: @version
 
+  @spec cluster(:c0 | :c1 | :c2 | :c3) :: map()
+  def cluster(name), do: Application.fetch_env!(:broadcaster, :cluster_info) |> Map.fetch!(name)
+
   @impl true
   def start(_type, _args) do
     dist_config =
@@ -21,7 +24,7 @@ defmodule Broadcaster.Application do
           [{Cluster.Supervisor, [[cluster: config], [name: Broadcaster.ClusterSupervisor]]}]
       end
 
-    # Start dist_config before starting Forwarder, 
+    # Start dist_config before starting Forwarder,
     # as Forwarder asks other nodes for their inputs.
     children =
       [

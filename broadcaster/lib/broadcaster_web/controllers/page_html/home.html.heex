@@ -1,71 +1,106 @@
-<div id="home" phx-hook="Home" class="h-full flex flex-row justify-center gap-6 lg:justify-end">
-  <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-3 overflow-y-scroll">
-    <p id="status-message" class="text-brand/80 font-semibold hidden">
-      Waiting for the stream to begin...
-    </p>
-    <div id="videoplayer-grid" class="w-full h-full grid gap-2 p-2 auto-rows-fr grid-cols-1">
-    </div>
-    <div id="stream-desc" class="flex flex-col gap-3 p-2">
-      <span class="font-bold text-xl">{raw(@title)}</span>
-      <span class={"#{if @description != "", do: "bg-neutral-200 p-4 rounded-lg text-wrap break-words", else: ""}"}>
-        {raw(@description)}
-      </span>
-    </div>
-  </div>
-  <div
-    id="chat"
-    class="hidden lg:flex flex-col overflow-hidden justify-end h-full text-wrap break-words w-96 p-4 border-brand/50 border-2 rounded-xl"
-  >
-    <div id="chat-messages" class="overflow-y-scroll justify-end"></div>
-
-    <div class="flex flex-col justify-end py-2">
-      <div class="w-full py-2">
-        <div class="flex w-full justify-end">
-          <span class="pr-1 text-[#606060] font-bold text-sm text-right">
-            Slow Mode {:erlang.float_to_binary(
-              Application.fetch_env!(:broadcaster, :chat_slow_mode_ms) / 1000,
-              decimals: 1
-            )}s
-          </span>
-        </div>
-        <textarea
-          id="chat-input"
-          class="resize-none rounded-lg w-full border-brand/50 focus:border-brand/100 focus:outline-none focus:ring-0"
-          maxlength="500"
-          disabled
-        ></textarea>
+<div id="home" phx-hook="Home" class="flex flex-col gap-6">
+  <div class="flex flex-row gap-6">
+    <div id="cluster-wrapper" class="flex flex-1 flex-col p-2 gap-5">
+      <div id="cluster-view" class="flex flex-1 p-2 justify-center rounded-lg border-2">
+        <img src={~p"/images/cluster.svg"} />
       </div>
-      <div class="flex flex-row py-2 gap-2 justify-between">
-        <input
-          id="chat-nickname"
-          class="text-brand/80 font-semibold min-w-0 bg-brand/10 rounded-lg border pl-2 border-brand/50 focus:border-brand/100 focus:outline-none"
-          placeholder="Your Nickname"
-          maxlength="25"
-        />
+      <div id="cluster-buttons" class="flex flex-col gap-5">
+        <div class="flex flex-row gap-5">
+          <button
+            id="button-1"
+            value={Broadcaster.Application.cluster(:c1).url || assigns[:current_url]}
+            class="flex-1 p-2 bg-brand/10 rounded-lg border-2 border-brand/50 text-brand font-semibold"
+          >
+            Join {Broadcaster.Application.cluster(:c1).reg || "LOC"}
+          </button>
+          <button
+            id="button-2"
+            value={Broadcaster.Application.cluster(:c2).url || assigns[:current_url]}
+            class="flex-1 p-2 bg-brand/10 rounded-lg border-2 border-brand/50 text-brand font-semibold"
+          >
+            Join {Broadcaster.Application.cluster(:c2).reg || "LOC"}
+          </button>
+          <button
+            id="button-3"
+            value={Broadcaster.Application.cluster(:c3).url || assigns[:current_url]}
+            class="flex-1 p-2 bg-brand/10 rounded-lg border-2 border-brand/50 text-brand font-semibold"
+          >
+            Join {Broadcaster.Application.cluster(:c3).reg || "LOC"}
+          </button>
+        </div>
         <button
-          id="chat-button"
-          class="py-2 px-4 rounded-lg bg-brand/10 text-brand/80 font-semibold"
+          id="button-auto"
+          value={Broadcaster.Application.cluster(:c0).url || assigns[:current_url]}
+          class="p-2 bg-brand/10 rounded-lg border-2 border-brand/50 text-brand font-semibold"
         >
-          Join
+          Join geographically closest
         </button>
       </div>
     </div>
-  </div>
-  <div
-    id="settings"
-    class="hidden overflow-hidden justify-start h-full text-wrap break-words w-96 p-7 border-brand/50 border-2 rounded-xl"
-  >
-    <div class="">
-      <label for="video-quality" class="font-semibold text-brand/100">Video quality</label>
-      <select
-        name="video-quality"
-        id="video-quality"
-        class="border-brand/50 text-brand/90 rounded-xl"
-      >
-        <option value="h" selected>High</option>
-        <option value="m">Medium</option>
-        <option value="l">Low</option>
-      </select>
+
+    <div id="videoplayer-wrapper" class="flex flex-1 flex-col gap-3 overflow-y-scroll">
+      <p id="status-message" class="text-brand/80 font-semibold hidden">
+        Waiting for the stream to begin...
+      </p>
+      <p class="px-2 text-lg">
+        Received video stream
+      </p>
+      <div id="videoplayer-grid" class="w-full grid gap-2 p-2 auto-rows-fr grid-cols-1"></div>
     </div>
+  </div>
+
+  <div id="videoplayer-stats" class="p-2 rounded-lg border-2">
+    <table id="stats">
+      <tbody>
+        <tr>
+          <td>time</td>
+          <td id="time">0</td>
+        </tr>
+        <tr>
+          <td>audioBitrate (kbps)</td>
+          <td id="audio-bitrate">0</td>
+        </tr>
+        <tr>
+          <td>videoBitrate (kbps)</td>
+          <td id="video-bitrate">0</td>
+        </tr>
+        <tr>
+          <td>frameWidth</td>
+          <td id="frame-width">0</td>
+        </tr>
+        <tr>
+          <td>frameHeight</td>
+          <td id="frame-height">0</td>
+        </tr>
+        <tr>
+          <td>framesPerSecond</td>
+          <td id="fps">0</td>
+        </tr>
+        <tr>
+          <td>keyframesDecoded</td>
+          <td id="keyframes-decoded">0</td>
+        </tr>
+        <tr>
+          <td>pliCount</td>
+          <td id="pli-count">0</td>
+        </tr>
+        <tr>
+          <td>packetLoss (%)</td>
+          <td id="packet-loss">0</td>
+        </tr>
+        <tr>
+          <td>avgJitterBufferDelay (ms) VALIDATE</td>
+          <td id="avg-jitter-buffer-delay">0</td>
+        </tr>
+        <tr>
+          <td>freezeCount</td>
+          <td id="freeze-count">0</td>
+        </tr>
+        <tr>
+          <td>freezeDuration (s)</td>
+          <td id="freeze-duration">0</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>

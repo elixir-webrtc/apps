@@ -17,6 +17,17 @@ import Config
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 
+read_cluster! = fn env ->
+  case System.get_env(env) do
+    nil ->
+      %{reg: nil, url: nil}
+
+    cluster ->
+      [reg, url] = String.split(cluster, ";")
+      %{reg: reg, url: url}
+  end
+end
+
 read_k8s_dist_config! = fn ->
   case System.get_env("K8S_SERVICE_NAME") do
     nil ->
@@ -62,6 +73,18 @@ read_ice_port_range! = fn ->
   end
 end
 
+# Cluster info is in form of %{reg: reg, url: url}.
+# If not provided, %{reg: nil, url: nil} will be used
+# and interpreted as using current window location
+cluster_info =
+  %{
+    c0: read_cluster!.("C0"),
+    c1: read_cluster!.("C1"),
+    c2: read_cluster!.("C2"),
+    c3: read_cluster!.("C3")
+  }
+  |> IO.inspect()
+
 dist_config =
   case System.get_env("DISTRIBUTION_MODE") do
     "k8s" -> read_k8s_dist_config!.()
@@ -90,6 +113,7 @@ pc_config = [
 ]
 
 config :broadcaster,
+  cluster_info: cluster_info,
   dist_config: dist_config,
   pc_config: pc_config
 

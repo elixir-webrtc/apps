@@ -8,7 +8,8 @@ defmodule BroadcasterWeb.PageController do
     render(conn, :home,
       page_title: "Home",
       title: title,
-      description: description
+      description: description,
+      current_url: current_url(conn)
     )
   end
 
