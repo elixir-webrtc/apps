@@ -34,6 +34,7 @@ defmodule BroadcasterWeb.Router do
   end
 
   scope "/api", BroadcasterWeb do
+    get "/pc-config", MediaController, :pc_config
     post "/whip", MediaController, :whip
     post "/whep", MediaController, :whep
 

@@ -67,7 +67,9 @@ async function connectSignaling(socket) {
         inputId = id;
       }
 
-      connectInput();
+      if (inputId) {
+        connectInput();
+      }
     })
     .receive('error', (resp) => {
       console.error(
@@ -90,11 +92,21 @@ async function connectInput() {
      whepEndpoint = whepEndpointBase + '?inputId=' + inputId;
   } 
 
+  console.log("Trying to connect to: ", whepEndpoint);
+
   if (inputId) {
     removeInput();
   }
 
-  const whepClient = new WHEPClient(whepEndpoint);
+  const pcConfigUrl = (url || window.location.origin) + '/api/pc-config'
+  const response = await fetch(pcConfigUrl, {
+    method: 'GET',
+    cache: 'no-cache',
+  });
+  const pcConfig = await response.json();
+  console.log('Fetched PC config from server: ', pcConfig)
+
+  const whepClient = new WHEPClient(whepEndpoint, pcConfig);
 
   const inputData = {
     whepClient: whepClient,

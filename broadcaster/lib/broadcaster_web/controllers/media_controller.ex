@@ -18,6 +18,12 @@ defmodule BroadcasterWeb.MediaController do
     ["location", "link", "content-type", "connection", "cache-control"]
   end
 
+  def pc_config(conn, _params) do
+    conn
+    |> resp(200, Broadcaster.PeerSupervisor.client_pc_config())
+    |> send_resp()
+  end
+
   # TODO: use proper statuses in case of error
   def whip(conn, _params) do
     with :ok <- authenticate(conn),

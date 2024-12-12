@@ -1,24 +1,17 @@
-let pcConfig;
-const pcConfigData = document.body.getAttribute('data-pcConfig');
-if (pcConfigData) {
-  pcConfig = JSON.parse(pcConfigData);
-} else {
-  pcConfig = {};
-}
-
 export class WHEPClient {
-  constructor(url) {
+  constructor(url, pcConfig = {}) {
     this.url = url;
     this.id = 'WHEP Client';
     this.pc = undefined;
     this.patchEndpoint = undefined;
     this.onstream = undefined;
     this.onconnected = undefined;
+    this.pcConfig = pcConfig;
   }
 
   async connect() {
     const candidates = [];
-    const pc = new RTCPeerConnection(pcConfig);
+    const pc = new RTCPeerConnection(this.pcConfig);
     this.pc = pc;
 
     pc.ontrack = (event) => {
