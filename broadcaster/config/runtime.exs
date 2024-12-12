@@ -147,7 +147,8 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    check_origin: false
 
   whip_token = System.get_env("WHIP_TOKEN") || raise "Environment variable WHIP_TOKEN is missing."
 
