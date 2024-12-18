@@ -10,6 +10,7 @@ defmodule Broadcaster.Forwarder do
   alias ExWebRTC.PeerConnection
   alias ExWebRTC.RTP.H264
   alias ExWebRTC.RTP.Munger
+  alias ExWebRTC.Recorder
 
   alias Broadcaster.PeerSupervisor
   alias BroadcasterWeb.Channel
@@ -39,6 +40,9 @@ defmodule Broadcaster.Forwarder do
         }
 
   @type state :: %{
+          # Options
+          recordings_enabled?: boolean(),
+
           # WHIP
           pending_inputs: %{pid() => id()},
           local_inputs: %{pid() => input_spec()},
@@ -50,9 +54,11 @@ defmodule Broadcaster.Forwarder do
           outputs: %{pid() => output_spec()}
         }
 
-  @spec start_link(any()) :: GenServer.on_start()
-  def start_link(_arg) do
-    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  @type options :: [recordings_enabled?: boolean()]
+
+  @spec start_link(options()) :: GenServer.on_start()
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @spec set_layer(pid(), String.t()) :: :ok | :error
@@ -85,9 +91,15 @@ defmodule Broadcaster.Forwarder do
     GenServer.call(__MODULE__, :local_inputs)
   end
 
+  @spec on_recorder_start() :: [ExWebRTC.MediaStreamTrack.t()]
+  def on_recorder_start() do
+    GenServer.call(__MODULE__, :on_recorder_start)
+  end
+
   @impl true
-  def init(_arg) do
+  def init(opts) do
     state = %{
+      recordings_enabled?: Keyword.get(opts, :recordings_enabled?, false),
       pending_inputs: %{},
       local_inputs: %{},
       remote_inputs: %{},
@@ -183,6 +195,16 @@ defmodule Broadcaster.Forwarder do
   end
 
   @impl true
+  def handle_call(:on_recorder_start, _from, state) do
+    tracks =
+      state.local_inputs
+      |> Map.keys()
+      |> Enum.flat_map(&(get_tracks(&1, :receiver) |> Tuple.to_list()))
+
+    {:reply, tracks, state}
+  end
+
+  @impl true
   def handle_info({:connect_timeout, pc}, state) do
     direction =
       cond do
@@ -209,6 +231,9 @@ defmodule Broadcaster.Forwarder do
     {id, state} = pop_in(state, [:pending_inputs, pc])
 
     {audio_track, video_track} = get_tracks(pc, :receiver)
+
+    if state.recordings_enabled?,
+      do: Recorder.add_tracks(Broadcaster.Recorder, [audio_track, video_track])
 
     input = %{
       pc: pc,
@@ -272,10 +297,18 @@ defmodule Broadcaster.Forwarder do
       cond do
         input_track == input.audio and rid == nil ->
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :audio, nil, packet})
+
+          if state.recordings_enabled?,
+            do: Recorder.record(Broadcaster.Recorder, input_track, nil, packet)
+
           forward_audio_packet(packet, input.id, state)
 
         input_track == input.video ->
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :video, rid, packet})
+
+          if state.recordings_enabled?,
+            do: Recorder.record(Broadcaster.Recorder, input_track, rid, packet)
+
           forward_video_packet(packet, input.id, rid, state)
 
         true ->

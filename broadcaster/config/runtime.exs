@@ -62,6 +62,23 @@ read_ice_port_range! = fn ->
   end
 end
 
+read_boolean! = fn env, default ->
+  if value = System.get_env(env) do
+    case String.downcase(value) do
+      "true" ->
+        true
+
+      "false" ->
+        false
+
+      _other ->
+        raise "Bad #{env} environment variable value. Expected true or false, got: #{value}"
+    end
+  else
+    default
+  end
+end
+
 dist_config =
   case System.get_env("DISTRIBUTION_MODE") do
     "k8s" -> read_k8s_dist_config!.()
@@ -89,9 +106,17 @@ pc_config = [
   ice_port_range: read_ice_port_range!.()
 ]
 
+recordings_config =
+  if read_boolean!.("RECORDINGS_ENABLED", false) do
+    [base_dir: System.get_env("RECORDINGS_BASE_DIR") || "./recordings"]
+  else
+    nil
+  end
+
 config :broadcaster,
   dist_config: dist_config,
-  pc_config: pc_config
+  pc_config: pc_config,
+  recordings_config: recordings_config
 
 if System.get_env("PHX_SERVER") do
   config :broadcaster, BroadcasterWeb.Endpoint, server: true
