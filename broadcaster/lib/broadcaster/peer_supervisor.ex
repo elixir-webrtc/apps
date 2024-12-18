@@ -19,7 +19,7 @@ defmodule Broadcaster.PeerSupervisor do
   @video_codecs [
     %RTPCodecParameters{
       payload_type: 96,
-      mime_type: "video/H264",
+      mime_type: "video/VP8",
       clock_rate: 90_000
     }
   ]
