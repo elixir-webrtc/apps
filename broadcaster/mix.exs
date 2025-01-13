@@ -4,7 +4,7 @@ defmodule Broadcaster.MixProject do
   def project do
     [
       app: :broadcaster,
-      version: "0.8.1",
+      version: "0.9.0-dev",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -58,7 +58,8 @@ defmodule Broadcaster.MixProject do
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.2"},
       {:corsica, "~> 2.1.3"},
-      {:ex_webrtc, "~> 0.7.0"},
+      # {:ex_webrtc, "~> 0.7.0"},
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", override: true},
       {:ex_webrtc_dashboard, "~> 0.7.0"},
       {:earmark, "~> 1.4"},
       {:libcluster, "~> 3.4"},

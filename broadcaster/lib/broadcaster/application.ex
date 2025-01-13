@@ -21,7 +21,17 @@ defmodule Broadcaster.Application do
           [{Cluster.Supervisor, [[cluster: config], [name: Broadcaster.ClusterSupervisor]]}]
       end
 
-    # Start dist_config before starting Forwarder, 
+    {recordings_enabled?, recordings_config} =
+      case Application.fetch_env!(:broadcaster, :recordings_config) do
+        nil ->
+          {false, []}
+
+        config ->
+          config = Keyword.put(config, :on_start, &Broadcaster.Forwarder.on_recorder_start/0)
+          {true, [{ExWebRTC.Recorder, [config, [name: Broadcaster.Recorder]]}]}
+      end
+
+    # Start dist_config before starting Forwarder,
     # as Forwarder asks other nodes for their inputs.
     children =
       [
@@ -33,10 +43,10 @@ defmodule Broadcaster.Application do
         dist_config ++
         [
           Broadcaster.PeerSupervisor,
-          Broadcaster.Forwarder,
+          {Broadcaster.Forwarder, [recordings_enabled?: recordings_enabled?]},
           Broadcaster.ChatHistory,
           {Registry, name: Broadcaster.ChatNicknamesRegistry, keys: :unique}
-        ]
+        ] ++ recordings_config
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
