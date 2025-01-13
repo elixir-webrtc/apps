@@ -59,7 +59,7 @@ defmodule Broadcaster.MixProject do
       {:bandit, "~> 1.2"},
       {:corsica, "~> 2.1.3"},
       # {:ex_webrtc, "~> 0.7.0"},
-      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", branch: "sgfn/rtp-rec", override: true},
+      {:ex_webrtc, github: "elixir-webrtc/ex_webrtc", override: true},
       {:ex_webrtc_dashboard, "~> 0.7.0"},
       {:earmark, "~> 1.4"},
       {:libcluster, "~> 3.4"},
