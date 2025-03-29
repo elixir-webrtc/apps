@@ -1,3 +1,6 @@
+<script>
+  window.roomId = "<%= @conn.params["room_id"] %>";
+</script>
 <div id="room" phx-hook="Room">
   <video id="videoPlayer" class="w-full rounded-xl" autoplay muted controls></video>
 

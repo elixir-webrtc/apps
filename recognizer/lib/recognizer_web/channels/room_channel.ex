@@ -18,6 +18,11 @@ defmodule RecognizerWeb.RoomChannel do
     {:noreply, socket}
   end
 
+  def handle_in("audio_chunk", %{"audio" => audio_base64}, socket) do
+    :ok = Room.receive_audio_msg(socket.assigns.room_id, audio_base64)
+    {:noreply, socket}
+  end
+
   def handle_info({:signaling, msg}, socket) do
     push(socket, "signaling", msg)
     {:noreply, socket}

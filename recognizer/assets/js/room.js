@@ -12,16 +12,80 @@ const imgscore = document.getElementById('imgscore');
 const time = document.getElementById('time');
 
 let localStream;
+let audioStrem;
 let socket;
 let channel;
 let pc;
+
+let audioRecorder;
+let audioChunks = [];
+let audioSendInterval;
+
+async function startAudioRecording() {
+  audioChunks = [];
+
+  audioRecorder = new MediaRecorder(audioStrem, { mimeType: 'audio/webm;codecs=opus'});
+
+  audioRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      audioChunks.push(event.data);
+    }
+  };
+
+  audioRecorder.onstop = () => {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+    sendAudio(audioBlob);
+    audioChunks = [];
+  };
+
+  audioRecorder.start();
+}
+
+function stopAudioRecording() {
+  if (audioRecorder) {
+    audioRecorder.stop();
+  }
+}
+
+function sendAudio(audioBlob) {
+  if (!channel || !channel.push) {
+    console.error('Channel is not initialized or push method is not available. Cannot send audio.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.readAsDataURL(audioBlob);
+  reader.onloadend = () => {
+    try {
+      const base64AudioMessage = reader.result.split(',')[1];
+      channel.push('audio_chunk', { audio: base64AudioMessage });
+      console.log('📤 Audio sent:', base64AudioMessage.length, 'bytes');
+    } catch (error) {
+      console.error('Error sending audio:', error);
+    }
+  };
+}
+
+function startAudioSendingLoop() {
+  audioSendInterval = setInterval(() => {
+    stopAudioRecording();
+    startAudioRecording();
+  }, 1000); // Send audio every 1 seconds
+}
+
+function stopAudioSendingLoop() {
+  if (audioSendInterval) {
+    clearInterval(audioSendInterval);
+  }
+}
+
 
 async function connect() {
   console.log('Connecting');
   button.onclick = disconnect;
 
   localStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
+    audio: false,
     video: {
       width: { ideal: 320 },
       height: { ideal: 160 },
@@ -29,7 +93,16 @@ async function connect() {
     },
   });
 
+  audioStrem = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true
+    },
+    video: false}
+  )
+
   videoPlayer.srcObject = localStream;
+  startAudioRecording();
 
   socket = new Socket('/socket', {});
   socket.connect();
@@ -60,9 +133,15 @@ async function connect() {
   });
 
   channel.on('imgReco', (msg) => {
-    const pred = msg['predictions'][0];
-    imgpred.innerText = pred['label'];
-    imgscore.innerText = pred['score'].toFixed(3);
+    const pred = msg['chunks'];
+
+    if (Array.isArray(pred) && pred.length > 0) {
+      imgpred.innerText = pred[0].text
+    } else {
+      imgpred.innerText = ''
+    }
+
+    imgscore.innerText = ''
   });
 
   channel.on('sessionTime', (msg) => {
@@ -76,18 +155,21 @@ async function connect() {
       JSON.stringify({ type: 'ice', data: ev.candidate })
     );
   };
-  pc.addTrack(localStream.getAudioTracks()[0]);
   pc.addTrack(localStream.getVideoTracks()[0]);
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
   channel.push('signaling', JSON.stringify(offer));
+
+  startAudioSendingLoop()
 }
 
 function disconnect() {
   console.log('Disconnecting');
   localStream.getTracks().forEach((track) => track.stop());
   videoPlayer.srcObject = null;
+
+  stopAudioSendingLoop()
 
   if (typeof channel !== 'undefined') {
     channel.leave();

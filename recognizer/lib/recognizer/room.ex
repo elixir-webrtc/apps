@@ -10,13 +10,21 @@ defmodule Recognizer.Room do
 
   @max_session_time_s Application.compile_env!(:recognizer, :max_session_time_s)
   @session_time_timer_interval_ms 1_000
-  @jitter_buffer_latency_ms 50
+  @jitter_buffer_latency_ms 100
 
   @video_codecs [
     %RTPCodecParameters{
       payload_type: 96,
       mime_type: "video/VP8",
       clock_rate: 90_000
+    }
+  ]
+
+  @audio_codecs [
+    %RTPCodecParameters{
+      payload_type: 97,
+      mime_type: "audio/opus",
+      clock_rate: 48_000
     }
   ]
 
@@ -34,6 +42,10 @@ defmodule Recognizer.Room do
     GenServer.cast(id(room_id), {:receive_signaling_msg, msg})
   end
 
+  def receive_audio_msg(room_id, audio_base64) do
+    GenServer.cast(id(room_id), {:receive_audio_msg, audio_base64})
+  end
+
   def stop(room_id) do
     GenServer.stop(id(room_id), :shutdown)
   end
@@ -44,6 +56,7 @@ defmodule Recognizer.Room do
     Process.send_after(self(), :session_time, @session_time_timer_interval_ms)
 
     {:ok, video_depayloader} = @video_codecs |> hd() |> Depayloader.new()
+    {:ok, audio_depayloader} = @audio_codecs |> hd() |> Depayloader.new()
 
     {:ok,
      %{
@@ -53,7 +66,9 @@ defmodule Recognizer.Room do
        task: nil,
        video_track: nil,
        video_depayloader: video_depayloader,
+       audio_depayloader: audio_depayloader,
        video_decoder: Xav.Decoder.new(:vp8),
+       audio_decoder: Xav.Decoder.new(:opus),
        video_buffer: JitterBuffer.new(latency: @jitter_buffer_latency_ms),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
@@ -69,6 +84,7 @@ defmodule Recognizer.Room do
     {:ok, pc} =
       PeerConnection.start_link(
         video_codecs: @video_codecs,
+        audio_codecs: @audio_codecs,
         ice_port_range: ice_port_range
       )
 
@@ -86,8 +102,27 @@ defmodule Recognizer.Room do
   end
 
   @impl true
-  def handle_cast({:receive_signaling_msg, msg}, state) do
-    case Jason.decode!(msg) do
+  def handle_cast({:receive_audio_msg, audio_base64}, state) do
+    audio_data = Base.decode64!(audio_base64)
+
+    with {:ok, frame} <- Xav.Decoder.decode(state.audio_decoder, audio_data) do
+      tensor = Xav.Frame.to_nx(frame)
+      Task.async(fn -> Nx.Serving.batched_run(Recognizer.AudioServing, tensor) end)
+    else
+      {:error, :no_keyframe} ->
+        Logger.warning("Couldn't decode audio frame - missing keyframe!")
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:receive_signaling_msg, msg}, state) when is_binary(msg) do
+    handle_cast({:receive_signaling_msg, Jason.decode!(msg)}, state)
+  end
+
+  def handle_cast({:receive_signaling_msg, msg}, state) when is_map(msg) do
+    case msg do
       %{"type" => "offer"} = offer ->
         desc = SessionDescription.from_json(offer)
         :ok = PeerConnection.set_remote_description(state.pc, desc)
@@ -95,6 +130,9 @@ defmodule Recognizer.Room do
         :ok = PeerConnection.set_local_description(state.pc, answer)
         msg = %{"type" => "answer", "sdp" => answer.sdp}
         send(state.channel, {:signaling, msg})
+
+      %{"type" => "ice", "data" => nil} ->
+        :ok
 
       %{"type" => "ice", "data" => data} when data != nil ->
         candidate = ICECandidate.from_json(data)
@@ -142,9 +180,13 @@ defmodule Recognizer.Room do
 
   @impl true
   def handle_info(
-        {:ex_webrtc, _pc, {:rtp, track_id, nil, _packet}},
+        {:ex_webrtc, _pc, {:rtp, track_id, nil, packet}},
         %{audio_track: %{id: track_id}} = state
       ) do
+    # FIX IT
+    # never appears
+    packet |> IO.inspect(label: :audio_packet)
+
     # Do something fun with the audio!
     {:noreply, state}
   end
@@ -192,6 +234,7 @@ defmodule Recognizer.Room do
 
   @impl true
   def handle_info({_ref, predicitons}, state) do
+    # predicitons |> IO.inspect(label: :predicitons)
     send(state.channel, {:img_reco, predicitons})
     state = %{state | task: nil}
     {:noreply, state}
@@ -211,15 +254,15 @@ defmodule Recognizer.Room do
   end
 
   defp handle_packet(packet, state) do
-    {frame, depayloader} = Depayloader.depayload(state.video_depayloader, packet)
-    state = %{state | video_depayloader: depayloader}
+    {frame, depayloader} = Depayloader.depayload(state.audio_depayloader, packet)
+    state = %{state | audio_depayloader: depayloader}
 
     with false <- is_nil(frame),
          # decoder needs to decode every frame, no matter we are going to process it or not
-         {:ok, frame} <- Xav.Decoder.decode(state.video_decoder, frame),
+         {:ok, frame} <- Xav.Decoder.decode(state.audio_decoder, frame),
          true <- is_nil(state.task) do
       tensor = Xav.Frame.to_nx(frame)
-      task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.VideoServing, tensor) end)
+      task = Task.async(fn -> Nx.Serving.batched_run(Recognizer.AudioServing, tensor) end)
       %{state | task: task}
     else
       other when other in [:ok, true, false] ->
@@ -229,5 +272,7 @@ defmodule Recognizer.Room do
         Logger.warning("Couldn't decode video frame - missing keyframe!")
         state
     end
+
+    state
   end
 end

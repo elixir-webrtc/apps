@@ -29,6 +29,11 @@ defmodule Recognizer.Application do
        name: Recognizer.VideoServing,
        batch_size: 4,
        batch_timeout: 100},
+      {Nx.Serving,
+       serving: create_audio_serving(),
+       name: Recognizer.AudioServing,
+       batch_size: 4,
+       batch_timeout: 100},
       {Lobby, @max_rooms}
     ]
 
@@ -54,6 +59,21 @@ defmodule Recognizer.Application do
       top_k: 1,
       compile: [batch_size: 4],
       defn_options: [compiler: EXLA]
+    )
+  end
+
+  defp create_audio_serving() do
+    # Load the pre-trained model
+    {:ok, model_info} = Bumblebee.load_model({:hf, "openai/whisper-tiny"})
+    {:ok, featurizer} = Bumblebee.load_featurizer({:hf, "openai/whisper-tiny"})
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, "openai/whisper-tiny"})
+    {:ok, generation_config} = Bumblebee.load_generation_config({:hf, "openai/whisper-tiny"})
+
+    Bumblebee.Audio.speech_to_text_whisper(model_info, featurizer, tokenizer, generation_config,
+      compile: [batch_size: 4],
+      defn_options: [
+        compiler: EXLA
+      ]
     )
   end
 end
