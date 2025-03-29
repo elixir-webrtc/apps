@@ -1,3 +1,6 @@
+<script>
+  window.roomId = "<%= @conn.params["room_id"] %>";
+</script>
 <div id="room" phx-hook="Room">
   <video id="videoPlayer" class="w-full rounded-xl" autoplay muted controls></video>
 
@@ -26,6 +29,16 @@
     <div
       id="imgpred"
       class="overflow-hidden mt-1 py-2 w-full h-12 rounded-xl border-solid border-2 border-grey-400"
+    >
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <h5>Audio</h5>
+    <div
+      id="audiotranscription"
+      class="overflow-y-auto mt-1 py-2 w-full h-48 rounded-xl border-solid border-2 border-grey-400"
+      style="max-height: 300px;"
     >
     </div>
   </div>
