@@ -55,6 +55,16 @@ config :nx, default_backend: EXLA.Backend
 
 config :recognizer, max_rooms: 5, max_session_time_s: 200
 
+config :exla,
+  clients: [
+    host: [platform: :host],
+    cuda: [
+      # platform: :cuda,
+      default_device_id: String.to_integer(System.get_env("DEFAULT_DEVICE_ID", "0")),
+      memory_fraction: String.to_float(System.get_env("MEMORY_FRACTION", "0.9"))
+    ]
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
