@@ -20,6 +20,14 @@ defmodule Recognizer.Room do
     }
   ]
 
+  @audio_codecs [
+    %RTPCodecParameters{
+      payload_type: 97,
+      mime_type: "audio/opus",
+      clock_rate: 48_000
+    }
+  ]
+
   defp id(room_id), do: {:via, Registry, {Recognizer.RoomRegistry, room_id}}
 
   def start_link(room_id) do
@@ -34,6 +42,10 @@ defmodule Recognizer.Room do
     GenServer.cast(id(room_id), {:receive_signaling_msg, msg})
   end
 
+  def receive_audio_msg(room_id, audio_base64) do
+    GenServer.cast(id(room_id), {:receive_audio_msg, audio_base64})
+  end
+
   def stop(room_id) do
     GenServer.stop(id(room_id), :shutdown)
   end
@@ -44,6 +56,7 @@ defmodule Recognizer.Room do
     Process.send_after(self(), :session_time, @session_time_timer_interval_ms)
 
     {:ok, video_depayloader} = @video_codecs |> hd() |> Depayloader.new()
+    {:ok, audio_depayloader} = @audio_codecs |> hd() |> Depayloader.new()
 
     {:ok,
      %{
@@ -53,7 +66,9 @@ defmodule Recognizer.Room do
        task: nil,
        video_track: nil,
        video_depayloader: video_depayloader,
+       audio_depayloader: audio_depayloader,
        video_decoder: Xav.Decoder.new(:vp8),
+       audio_decoder: Xav.Decoder.new(:opus),
        video_buffer: JitterBuffer.new(latency: @jitter_buffer_latency_ms),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
@@ -69,6 +84,7 @@ defmodule Recognizer.Room do
     {:ok, pc} =
       PeerConnection.start_link(
         video_codecs: @video_codecs,
+        audio_codecs: @audio_codecs,
         ice_port_range: ice_port_range
       )
 
@@ -86,8 +102,23 @@ defmodule Recognizer.Room do
   end
 
   @impl true
-  def handle_cast({:receive_signaling_msg, msg}, state) do
-    case Jason.decode!(msg) do
+  def handle_cast({:receive_audio_msg, audio_base64}, state) do
+    file = "/tmp/audio-#{state.id}.webm"
+    audio_data = Base.decode64!(audio_base64)
+
+    File.write!(file, audio_data)
+    Task.async(fn -> Nx.Serving.batched_run(Recognizer.AudioServing, {:file, file}) end)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:receive_signaling_msg, msg}, state) when is_binary(msg) do
+    handle_cast({:receive_signaling_msg, Jason.decode!(msg)}, state)
+  end
+
+  def handle_cast({:receive_signaling_msg, msg}, state) when is_map(msg) do
+    case msg do
       %{"type" => "offer"} = offer ->
         desc = SessionDescription.from_json(offer)
         :ok = PeerConnection.set_remote_description(state.pc, desc)
@@ -95,6 +126,9 @@ defmodule Recognizer.Room do
         :ok = PeerConnection.set_local_description(state.pc, answer)
         msg = %{"type" => "answer", "sdp" => answer.sdp}
         send(state.channel, {:signaling, msg})
+
+      %{"type" => "ice", "data" => nil} ->
+        :ok
 
       %{"type" => "ice", "data" => data} when data != nil ->
         candidate = ICECandidate.from_json(data)
@@ -145,6 +179,7 @@ defmodule Recognizer.Room do
         {:ex_webrtc, _pc, {:rtp, track_id, nil, _packet}},
         %{audio_track: %{id: track_id}} = state
       ) do
+    # FIX IT, never appears
     # Do something fun with the audio!
     {:noreply, state}
   end
@@ -191,9 +226,21 @@ defmodule Recognizer.Room do
   end
 
   @impl true
-  def handle_info({_ref, predicitons}, state) do
-    send(state.channel, {:img_reco, predicitons})
+  def handle_info({_ref, %{predictions: [_ | _] = predictions}}, state) do
+    prediction = predictions |> Enum.sort_by(& &1.score) |> hd()
+
+    send(state.channel, {:img_reco, prediction})
     state = %{state | task: nil}
+    {:noreply, state}
+  end
+
+  def handle_info({_ref, %{chunks: chunks}}, state) do
+    transcription =
+      chunks
+      |> Enum.sort_by(& &1.start_timestamp_seconds)
+      |> Enum.reduce("", &(&2 <> "\n" <> &1.text))
+
+    send(state.channel, {:audio_transcription, %{text: transcription}})
     {:noreply, state}
   end
 
