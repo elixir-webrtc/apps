@@ -8,8 +8,8 @@ defmodule Broadcaster.Forwarder do
   alias Phoenix.PubSub
 
   alias ExWebRTC.PeerConnection
-  alias ExWebRTC.RTP.H264
   alias ExWebRTC.RTP.Munger
+  alias ExWebRTC.RTP.VP8
   alias ExWebRTC.Recorder
 
   alias Broadcaster.PeerSupervisor
@@ -460,7 +460,7 @@ defmodule Broadcaster.Forwarder do
     layer = default_layer(input)
 
     {audio_track, video_track} = get_tracks(pc, :sender)
-    munger = Munger.new(90_000)
+    munger = Munger.new(:vp8, 90_000)
 
     output = %{
       audio: audio_track.id,
@@ -484,7 +484,7 @@ defmodule Broadcaster.Forwarder do
       Map.new(state.outputs, fn
         {pc, %{input_id: ^input_id, layer: layer, pending_layer: p_layer} = output} ->
           output =
-            if p_layer == rid and p_layer != layer and H264.keyframe?(packet) do
+            if p_layer == rid and p_layer != layer and VP8.keyframe?(packet) do
               munger = Munger.update(output.munger)
               %{output | layer: p_layer, munger: munger}
             else

@@ -78,7 +78,7 @@ defmodule Nexus.Room do
   end
 
   @impl true
-  def handle_call({:mark_ready, id, _peer_ids}, _from, state) do
+  def handle_call({:mark_ready, id}, _from, state) do
     Logger.debug("Peer #{id} was already marked as ready, ignoring")
 
     {:reply, :ok, state}

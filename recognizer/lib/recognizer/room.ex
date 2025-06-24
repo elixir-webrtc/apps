@@ -53,7 +53,7 @@ defmodule Recognizer.Room do
        task: nil,
        video_track: nil,
        video_depayloader: video_depayloader,
-       video_decoder: Xav.Decoder.new(:vp8),
+       video_decoder: Xav.Decoder.new(:vp8, out_format: :rgb24),
        video_buffer: JitterBuffer.new(latency: @jitter_buffer_latency_ms),
        audio_track: nil,
        session_start_time: System.monotonic_time(:millisecond)
