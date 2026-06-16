@@ -3,8 +3,6 @@ defmodule Nexus.PeerSupervisor do
 
   use DynamicSupervisor
 
-  require Logger
-
   alias Nexus.Peer
 
   @spec start_link(any()) :: DynamicSupervisor.on_start_child()
