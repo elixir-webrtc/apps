@@ -323,15 +323,13 @@ defmodule Broadcaster.Forwarder do
   def handle_info({:ex_webrtc, pc, {:rtcp, packets}}, state) do
     with {:ok, %{input_id: input_id, layer: layer}} <- Map.fetch(state.outputs, pc),
          {:ok, input} <- find_input(input_id, state) do
-      for packet <- packets do
-        case packet do
-          {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
-            PeerConnection.send_pli(input.pc, input.video, layer)
+      Enum.each(packets, fn
+        {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
+          PeerConnection.send_pli(input.pc, input.video, layer)
 
-          _other ->
-            :ok
-        end
-      end
+        _other ->
+          :ok
+      end)
     end
 
     {:noreply, state}
