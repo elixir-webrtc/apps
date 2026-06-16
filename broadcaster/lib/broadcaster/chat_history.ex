@@ -3,9 +3,11 @@ defmodule Broadcaster.ChatHistory do
   use Agent
 
   @max_history_size 100
+  @chat_clear_interval_ms Application.compile_env!(:broadcaster, :chat_clear_interval_ms)
 
   @spec start_link(term()) :: Agent.on_start()
   def start_link(_) do
+    :timer.apply_interval(@chat_clear_interval_ms, __MODULE__, :clear, [])
     Agent.start_link(fn -> %{size: 0, queue: :queue.new()} end, name: __MODULE__)
   end
 
@@ -38,5 +40,14 @@ defmodule Broadcaster.ChatHistory do
       queue = :queue.delete_with(fn msg -> msg.id == id end, history.queue)
       %{history | size: history.size - 1, queue: queue}
     end)
+  end
+
+  @spec clear() :: :ok
+  def clear() do
+    try do
+      Agent.update(__MODULE__, fn _ -> %{size: 0, queue: :queue.new()} end)
+    catch
+      :exit, _ -> :ok
+    end
   end
 end
