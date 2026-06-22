@@ -299,7 +299,7 @@ defmodule Broadcaster.Forwarder do
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :audio, nil, packet})
 
           if state.recordings_enabled?,
-            do: Recorder.record(Broadcaster.Recorder, input_track, nil, packet)
+            do: Recorder.record(Broadcaster.Recorder, input_track, nil, nil, packet)
 
           forward_audio_packet(packet, input.id, state)
 
@@ -307,7 +307,7 @@ defmodule Broadcaster.Forwarder do
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :video, rid, packet})
 
           if state.recordings_enabled?,
-            do: Recorder.record(Broadcaster.Recorder, input_track, rid, packet)
+            do: Recorder.record(Broadcaster.Recorder, input_track, rid, nil, packet)
 
           forward_video_packet(packet, input.id, rid, state)
 
