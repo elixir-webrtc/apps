@@ -4,7 +4,7 @@ defmodule Recognizer.MixProject do
   def project do
     [
       app: :recognizer,
-      version: "0.7.0",
+      version: "0.8.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -58,11 +58,11 @@ defmodule Recognizer.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
-      {:ex_webrtc, "~> 0.14.0"},
-      {:ex_webrtc_dashboard, "~> 0.9.0"},
-      {:xav, "~> 0.11.0"},
-      {:bumblebee, "~> 0.6.2"},
-      {:exla, "~> 0.9.2"},
+      {:ex_webrtc, "~> 0.17.0"},
+      {:ex_webrtc_dashboard, "~> 0.10.0"},
+      {:xav, github: "elixir-webrtc/xav", ref: "412ffb1191fd5c395e932e942f86b8ff025a4dd0"},
+      {:bumblebee, "~> 0.7.0"},
+      {:exla, "~> 0.12.0"},
 
       # Dialyzer and credo
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
@@ -78,13 +78,12 @@ defmodule Recognizer.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "deps.patch", "assets.setup", "assets.build"],
+      setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind default", "esbuild default"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
       "assets.format": &lint_and_format_assets/1,
-      "assets.check": &check_assets/1,
-      "deps.patch": &patch_deps/1
+      "assets.check": &check_assets/1
     ]
   end
 
@@ -114,19 +113,5 @@ defmodule Recognizer.MixProject do
   defp execute_npm_command(command) do
     {_stream, rc} = System.cmd("npm", ["--prefix=assets"] ++ command, into: IO.stream())
     {command, rc}
-  end
-
-  # HACK: With clang 17.0.0, compilation of `exla==0.9.2` fails because of the `-Wmissing-template-arg-list-after-template-kw` check.
-  #       This issue isn't present in `exla==0.10.0`, but `bumblebee==0.6.2` depends on `nx ~> 0.9.0`,
-  #       and since `exla==0.10.0` depends on `nx ~> 0.10.0`, we're stuck on `exla==0.9.2` until a new version of `bumblebee` is released.
-  #
-  #       This patch adds the `-Wno-missing-template-arg-list-after-template-kw` flag in `exla`'s Makefile to suppress the compiler warning.
-  defp patch_deps(_args) do
-    {_, _} =
-      System.cmd("patch", ~w(-p1 -i ./0000-exla-disable-failing-clang-compile-check.patch),
-        into: IO.stream()
-      )
-
-    :ok
   end
 end

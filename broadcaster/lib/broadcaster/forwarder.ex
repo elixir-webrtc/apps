@@ -299,7 +299,7 @@ defmodule Broadcaster.Forwarder do
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :audio, nil, packet})
 
           if state.recordings_enabled?,
-            do: Recorder.record(Broadcaster.Recorder, input_track, nil, packet)
+            do: Recorder.record(Broadcaster.Recorder, input_track, nil, nil, packet)
 
           forward_audio_packet(packet, input.id, state)
 
@@ -307,7 +307,7 @@ defmodule Broadcaster.Forwarder do
           PubSub.broadcast(@pubsub, "input:#{input.id}", {:input, input_pc, :video, rid, packet})
 
           if state.recordings_enabled?,
-            do: Recorder.record(Broadcaster.Recorder, input_track, rid, packet)
+            do: Recorder.record(Broadcaster.Recorder, input_track, rid, nil, packet)
 
           forward_video_packet(packet, input.id, rid, state)
 
@@ -323,15 +323,13 @@ defmodule Broadcaster.Forwarder do
   def handle_info({:ex_webrtc, pc, {:rtcp, packets}}, state) do
     with {:ok, %{input_id: input_id, layer: layer}} <- Map.fetch(state.outputs, pc),
          {:ok, input} <- find_input(input_id, state) do
-      for packet <- packets do
-        case packet do
-          {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
-            PeerConnection.send_pli(input.pc, input.video, layer)
+      Enum.each(packets, fn
+        {_id, %ExRTCP.Packet.PayloadFeedback.PLI{}} ->
+          PeerConnection.send_pli(input.pc, input.video, layer)
 
-          _other ->
-            :ok
-        end
-      end
+        _other ->
+          :ok
+      end)
     end
 
     {:noreply, state}
