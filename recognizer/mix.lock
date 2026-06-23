@@ -73,7 +73,7 @@
   "unzip": {:hex, :unzip, "0.13.0", "bf5ec6ac6063c69e6ec54c8b4a3b8dcd7a2719d28d10d7025776ab107957cde9", [:mix], [], "hexpm", "4bcb9892ecbf2042606b43ab685a1bffe03c14003e6246f5453db2c829237fd9"},
   "websock": {:hex, :websock, "0.5.3", "2f69a6ebe810328555b6fe5c831a851f485e303a7c8ce6c5f675abeb20ebdadc", [:mix], [], "hexpm", "6105453d7fac22c712ad66fab1d45abdf049868f253cf719b625151460b8b453"},
   "websock_adapter": {:hex, :websock_adapter, "0.5.9", "43dc3ba6d89ef5dec5b1d0a39698436a1e856d000d84bf31a3149862b01a287f", [:mix], [{:bandit, ">= 0.6.0", [hex: :bandit, repo: "hexpm", optional: true]}, {:plug, "~> 1.14", [hex: :plug, repo: "hexpm", optional: false]}, {:plug_cowboy, "~> 2.6", [hex: :plug_cowboy, repo: "hexpm", optional: true]}, {:websock, "~> 0.5", [hex: :websock, repo: "hexpm", optional: false]}], "hexpm", "5534d5c9adad3c18a0f58a9371220d75a803bf0b9a3d87e6fe072faaeed76a08"},
-  "xav": {:git, "https://github.com/elixir-webrtc/xav.git", "412ffb1191fd5c395e932e942f86b8ff025a4dd0", []},
+  "xav": {:git, "https://github.com/elixir-webrtc/xav.git", "412ffb1191fd5c395e932e942f86b8ff025a4dd0", [ref: "412ffb1191fd5c395e932e942f86b8ff025a4dd0"]},
   "xla": {:hex, :xla, "0.10.0", "41121e9f011456242d3a79b9289910ce43419be0b0e7ebe67cc1292c6b3f232f", [:make, :mix], [{:elixir_make, "~> 0.4", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "f57d91aea6e661b52bf12239316c598679e9170628122bbd941235f040122bc6"},
   "zarex": {:hex, :zarex, "1.0.6", "f657ed1187e6e90472e24c92b1fd5bf3f846e74bd240bd77276c13f336a8d168", [:mix], [], "hexpm", "b628a9b0bc312f278af2c288078c31fd4757224b82d768e91bcf3bedbe3a50e7"},
 }
